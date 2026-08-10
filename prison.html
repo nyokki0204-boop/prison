@@ -115,6 +115,14 @@ header.top{
 .ex-name{font-weight:600;font-size:15px}
 .ex-step{font-family:var(--disp);font-size:11px;letter-spacing:.18em;color:var(--brass)}
 .ex-sub{font-size:12.5px;color:var(--chalk-dim);margin-top:3px}
+.tchips{display:flex;gap:5px;margin-top:9px}
+.tchips div{flex:1;text-align:center;padding:5px 2px 4px;border-radius:2px;
+ background:var(--concrete-800);border:1px solid var(--concrete-500);font-size:9.5px;color:var(--chalk-dim)}
+.tchips div b{display:block;font-family:var(--disp);font-size:13px;color:var(--chalk-dim);font-weight:500;margin:1px 0}
+.tchips div i{font-style:normal;font-size:8.5px;letter-spacing:.1em}
+.tchips div.ok{border-color:var(--moss);background:rgba(110,125,82,.14);color:#93A377}
+.tchips div.ok b{color:var(--chalk)}
+.tchips div.top.ok{border-color:var(--brass);background:rgba(201,162,39,.14);color:var(--brass)}
 .ex-goal{font-family:var(--disp);font-size:12px;letter-spacing:.08em;color:var(--chalk);margin-top:6px}
 .ex-goal b{color:var(--brass);font-weight:500}
 
@@ -415,6 +423,44 @@ nav span{font-size:9.5px;letter-spacing:.08em}
 .view.on{animation:risein .3s ease}
 .sparkbox{position:absolute;inset:0;pointer-events:none;overflow:visible}
 .sparkbox i{position:absolute;top:50%;left:50%;width:4px;height:4px;border-radius:50%;background:var(--brass);animation:spark .7s ease-out forwards}
+
+
+/* ============================================================
+   履歴・種目詳細
+   ============================================================ */
+.hrow{display:flex;gap:11px;padding:10px 0;border-bottom:1px solid var(--concrete-600)}
+.hrow:last-of-type{border-bottom:none}
+.hdate{font-family:var(--disp);font-size:12px;color:var(--chalk-dim);width:38px;flex:none;padding-top:2px;letter-spacing:.04em}
+.hbody{flex:1;min-width:0}
+.hline{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.htier{font-size:10px;font-weight:700;padding:2px 7px;border-radius:2px;letter-spacing:.06em}
+.htier.beg{background:var(--concrete-500);color:var(--chalk)}
+.htier.int{background:var(--moss);color:#EDE8DA}
+.htier.pro{background:var(--brass);color:#1E1E1B}
+.htier.none{background:transparent;border:1px solid var(--rust);color:#C08A6E}
+.hstep{font-family:var(--disp);font-size:11px;letter-spacing:.12em;color:var(--chalk-dim)}
+.hname{font-size:12px;color:var(--chalk)}
+.hsets{font-family:var(--disp);font-size:13px;letter-spacing:.04em;color:var(--chalk);margin-top:3px}
+.hmemo{font-size:11.5px;color:var(--chalk-dim);margin-top:3px;overflow-wrap:anywhere}
+
+.dstep{font-family:var(--disp);font-size:34px;font-weight:300;line-height:1.1;margin-top:4px}
+.dstep span{font-size:14px;color:var(--chalk-dim);letter-spacing:.1em}
+
+.srow{display:flex;align-items:center;gap:11px;padding:9px 0;border-bottom:1px solid var(--concrete-600)}
+.srow:last-child{border-bottom:none}
+.srow.past{opacity:.55}
+.srow.now{background:rgba(201,162,39,.08);margin:0 -14px;padding:11px 14px;border-radius:2px}
+.sno{font-family:var(--disp);font-size:13px;color:var(--chalk-dim);width:22px;flex:none;text-align:center}
+.srow.now .sno{color:var(--brass)}
+.sbody{flex:1;min-width:0}
+.sname{font-size:13px;overflow-wrap:anywhere}
+.sname em{font-style:normal;font-size:9px;letter-spacing:.14em;color:var(--brass);border:1px solid var(--brass-dim);border-radius:2px;padding:1px 5px;margin-left:5px;white-space:nowrap}
+.ssub{font-size:11px;color:var(--chalk-dim);margin-top:2px}
+.sdot{width:9px;height:9px;border-radius:50%;flex:none;background:var(--concrete-600);border:1px solid var(--concrete-500)}
+.sdot.beg{background:var(--concrete-500);border-color:var(--chalk-dim)}
+.sdot.int{background:var(--moss);border-color:var(--moss)}
+.sdot.pro{background:var(--brass);border-color:var(--brass)}
+.sdot.none{background:transparent;border-color:var(--rust)}
 
 /* トースト・モーダル */
 #toast{
@@ -768,6 +814,17 @@ function guardHP(id,extraTier,atStep){
   const b=Math.max(bestTier(id,st),extraTier||0);
   return {max:3,d:Math.min(3,b)};
 }
+/** 現在のステップで初級・中級・上級のどこまで到達したかを示すチップ */
+function tchips(id,st){
+  const sd=stepData(id,st),b=bestTier(id,st),un=sd.unit==='s'?'秒':'';
+  const g=[sd.beg,sd.int,sd.pro];
+  let h='<div class="tchips">';
+  for(let t=1;t<=3;t++)
+    h+='<div class="'+(b>=t?'ok ':'')+(t===3?'top':'')+'">'+TIER[t]
+      +'<b>'+g[t-1][0]+'\u00d7'+g[t-1][1]+un+'</b>'
+      +'<i>'+(b>=t?'達成':'未')+'</i></div>';
+  return h+'</div>';
+}
 function hpPips(g){let h='';for(let i=0;i<g.max;i++)h+='<i class="'+(i<g.d?(g.d>=g.max?'k':'d'):'')+'"></i>';return h;}
 /** 差し入れカードを1枚引く（並70% / 稀25% / 極5%） */
 function drawCard(){
@@ -1011,11 +1068,8 @@ function renderHome(){
       +'<div class="ex-top"><div class="ex-name">'+e.n+'</div>'
       +(dn?'<span class="badge-mini badge-done">DONE</span>':rdy?'<span class="badge-mini">討伐済</span>':'<span class="ex-step">STEP '+String(st).padStart(2,'0')+'</span>')
       +'</div><div class="ex-sub">'+sd.name+'</div>'
-      +'<div class="ex-goal">初 '+sd.beg[0]+'\u00d7'+sd.beg[1]+'　中 '+sd.int[0]+'\u00d7'+sd.int[1]
-      +'　<b>上 '+sd.pro[0]+'\u00d7'+sd.pro[1]+'</b></div>'
-      +'<div class="bar">'+bars+'</div>'
-      +'<div class="guard"><span class="guard-n">'+(g.d?'到達 '+TIER[g.d]:'未着手')+(g.d>=3?'・討伐':'')+'</span>'
-      +'<div class="hp">'+hpPips(g)+'</div></div></div></button>';
+      +tchips(e.id,st)
+      +'<div class="bar">'+bars+'</div></div></button>';
   });
 
   h+='<button class="btn rest '+(isRest?'on':'')+'" style="margin-top:12px" onclick="toggleRest()">'
@@ -1227,16 +1281,22 @@ function closeModal(){$('#modal').classList.remove('on');}
 /* ============================================================
    7. 進捗（グラフ・カレンダー）
    ============================================================ */
-let pick='pu', cmode='reach', calM=new Date().getMonth(), calY=new Date().getFullYear();
+let pick='pu', cmode='reach', detail=null, histN=12, dHistN=20;
+let calM=new Date().getMonth(), calY=new Date().getFullYear();
 function renderProg(){
-  let h='<span class="eyebrow">Progression</span><div class="slab">';
-  EX.forEach(e=>{const st=step(e.id),sd=stepData(e.id,st);let b='';
-    for(let i=1;i<=10;i++)b+='<i class="'+(i<st?'f':i===st?'c':'')+'"></i>';
-    h+='<div style="margin-bottom:13px"><div style="display:flex;justify-content:space-between;font-size:13px">'
-     +'<span>'+e.n+'</span><span class="num" style="color:var(--brass);font-size:12px">'+st+' / 10</span></div>'
-     +'<div class="bar">'+b+'</div>'
-     +'<div class="muted" style="font-size:11px;margin-top:4px">'+sd.name+'</div></div>';});
-  h+='</div>';
+  if(detail){renderDetail(detail);return;}
+  let h='<span class="eyebrow">取組中のレベル</span>';
+  EX.forEach(e=>{const st=step(e.id),sd=stepData(e.id,st),b=bestTier(e.id,st);
+    let bar='';for(let i=1;i<=10;i++)bar+='<i class="'+(i<st?'f':i===st?'c':'')+'"></i>';
+    h+='<button class="ex" onclick="openDetail(\''+e.id+'\')"><div class="icn">'+guardSVG(e.id)+'</div><div class="bd">'
+     +'<div class="ex-top"><div class="ex-name">'+e.n+'</div>'
+     +'<span class="ex-step">STEP '+String(st).padStart(2,'0')+' / 10</span></div>'
+     +'<div class="ex-sub">'+sd.name+'</div>'
+     +tchips(e.id,st)
+     +'<div class="bar">'+bar+'</div>'
+     +'<div class="muted" style="font-size:10.5px;margin-top:6px">'
+     +(b?'このステップは'+TIER[b]+'まで達成':'このステップはまだ記録なし')+' ・ タップで履歴 ›</div>'
+     +'</div></button>';});
 
   h+='<span class="eyebrow">'+(cmode==='reach'?'Progression over time':'Daily volume')+'</span>'
    +'<div class="segs">'
@@ -1256,6 +1316,89 @@ function renderProg(){
    +'<div style="display:flex;gap:14px;margin-top:12px;font-size:11px;color:var(--chalk-dim)">'
    +'<span><i style="display:inline-block;width:9px;height:9px;background:var(--brass);border-radius:1px"></i> 実施</span>'
    +'<span><i style="display:inline-block;width:9px;height:9px;background:var(--rust);border-radius:1px"></i> 休息</span></div></div>';
+
+  /* --- 最近の記録（全種目） --- */
+  const recent=db.logs.slice().sort(cmpLog).slice(0,histN);
+  h+='<span class="eyebrow">最近の記録 \u2014 全'+db.logs.length+'件</span><div class="slab">';
+  h+=recent.length?recent.map(l=>hrow(l,true)).join(''):'<div class="muted" style="text-align:center;padding:16px 0">まだ記録がない</div>';
+  if(db.logs.length>histN)h+='<button class="btn sm ghost" style="width:100%;margin-top:10px" onclick="histN+=30;renderProg()">さらに30件表示</button>';
+  h+='</div>';
+  $('#v-prog').innerHTML=h;
+}
+/** 記録を新しい順に並べる */
+function cmpLog(a,b){return a.date===b.date?db.logs.indexOf(b)-db.logs.indexOf(a):(a.date<b.date?1:-1);}
+/** 履歴の1行 */
+function hrow(l,showName){
+  const t=tierOf(l),sd=stepData(l.ex,l.step),un=sd.unit==='s'?'秒':'回';
+  const cls=['none','beg','int','pro'][t];
+  const pt=l.date.split('-');
+  return '<div class="hrow">'
+   +'<div class="hdate">'+(+pt[1])+'/'+(+pt[2])+'</div>'
+   +'<div class="hbody">'
+   +'<div class="hline"><span class="htier '+cls+'">'+(t?TIER[t]:'未満')+'</span>'
+   +'<span class="hstep">STEP '+l.step+'</span>'
+   +(showName?'<span class="hname">'+ex(l.ex).n+'</span>':'')+'</div>'
+   +'<div class="hsets">'+(l.sets?l.sets.join(' / ')+' '+un+'　計'+repsOf(l)+un
+      :stdOf(l.ex,l.step,t||1)[0]+'\u00d7'+stdOf(l.ex,l.step,t||1)[1]+un)
+   +(l.rpe?'　きつさ'+l.rpe:'')+'</div>'
+   +(l.memo?'<div class="hmemo">'+esc(l.memo)+'</div>':'')
+   +'</div></div>';
+}
+/** 種目ごとの詳細・履歴画面 */
+function openDetail(id){detail=id;dHistN=20;renderProg();window.scrollTo(0,0);}
+function closeDetail(){detail=null;renderProg();window.scrollTo(0,0);}
+function renderDetail(id){
+  const e=ex(id),st=step(id),sd=stepData(id,st),logs=db.logs.filter(l=>l.ex===id);
+  const un=sd.unit==='s'?'秒':'回';
+
+  /* ステップごとの集計 */
+  const by={};
+  logs.forEach(l=>{
+    const o=by[l.step]||(by[l.step]={n:0,tier:0,best:0,bset:0,first:l.date,last:l.date});
+    o.n++;o.tier=Math.max(o.tier,tierOf(l));o.best=Math.max(o.best,repsOf(l));
+    if(l.sets&&l.sets.length)o.bset=Math.max(o.bset,Math.max.apply(null,l.sets));
+    if(l.date<o.first)o.first=l.date;
+    if(l.date>o.last)o.last=l.date;
+  });
+
+  let h='<button class="btn ghost sm" style="margin-bottom:12px" onclick="closeDetail()">← 進捗にもどる</button>';
+
+  /* 現在取組中のレベル */
+  h+='<div class="slab" style="text-align:center">'
+   +'<div style="width:74px;height:74px;margin:0 auto 4px">'+guardSVG(id)+'</div>'
+   +'<div style="font-weight:700;font-size:17px">'+e.n+'</div>'
+   +'<div class="dstep">STEP '+String(st).padStart(2,'0')+'<span> / 10</span></div>'
+   +'<div class="muted" style="font-size:13px;margin-bottom:12px">'+sd.name+'</div>'
+   +tchips(id,st)+'</div>';
+
+  /* 自己ベスト */
+  const cur=by[st]||{n:0,best:0,bset:0};
+  h+='<div class="stats"><div><b>'+logs.length+'</b><span>記録数</span></div>'
+   +'<div><b>'+(cur.bset||0)+'</b><span>最高1セット</span></div>'
+   +'<div><b>'+(cur.best||0)+'</b><span>最高の合計</span></div></div>';
+
+  /* ステップの歩み */
+  h+='<span class="eyebrow">ステップの歩み</span><div class="slab">';
+  for(let i=1;i<=10;i++){
+    const o=by[i],sdx=stepData(id,i),now=i===st;
+    const state=o?(o.tier>=3?'pro':o.tier===2?'int':o.tier?'beg':'none'):'';
+    h+='<div class="srow'+(now?' now':'')+(i<st?' past':'')+'">'
+     +'<div class="sno">'+String(i).padStart(2,'0')+'</div>'
+     +'<div class="sbody"><div class="sname">'+sdx.name+(now?' <em>取組中</em>':'')+'</div>'
+     +'<div class="ssub">'+(o
+        ? o.n+'回記録 ・ 到達 '+(o.tier?TIER[o.tier]:'基準未満')+(o.bset?' ・ 最高 '+o.bset+un:'')
+        : '未着手')+'</div></div>'
+     +'<div class="sdot '+state+'"></div></div>';
+  }
+  h+='</div>';
+
+  /* 履歴 */
+  const rec=logs.slice().sort(cmpLog);
+  h+='<span class="eyebrow">'+e.n+'の記録 \u2014 '+logs.length+'件</span><div class="slab">';
+  h+=rec.length?rec.slice(0,dHistN).map(l=>hrow(l,false)).join('')
+    :'<div class="muted" style="text-align:center;padding:16px 0">まだ記録がない</div>';
+  if(logs.length>dHistN)h+='<button class="btn sm ghost" style="width:100%;margin-top:10px" onclick="dHistN+=30;renderProg()">さらに30件表示</button>';
+  h+='</div>';
   $('#v-prog').innerHTML=h;
 }
 function mv(d){calM+=d;if(calM<0){calM=11;calY--;}if(calM>11){calM=0;calY++;}renderProg();}
