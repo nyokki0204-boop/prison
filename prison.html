@@ -1,0 +1,1389 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1E1E1B">
+<title>獄中日誌 — プリズナートレーニング</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;500;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   トークン（色・文字サイズなどの共通設定）
+   ============================================================ */
+:root{
+  --concrete-900:#1E1E1B;   /* 一番暗いコンクリート＝背景 */
+  --concrete-800:#262622;
+  --concrete-700:#302F2A;   /* パネル */
+  --concrete-600:#3C3B34;
+  --concrete-500:#4E4C43;   /* 罫線 */
+  --chalk:#EDE8DA;          /* チョークの白＝本文 */
+  --chalk-dim:#948F82;      /* 補助テキスト */
+  --brass:#C9A227;          /* 真鍮＝進級・XP・強調 */
+  --brass-dim:#7A631A;
+  --rust:#8E4B2E;           /* 錆＝休息日・警告 */
+  --moss:#6E7D52;           /* 苔＝達成 */
+  --r:3px;
+  --disp:'Oswald','Hiragino Sans','Hiragino Kaku Gothic ProN',sans-serif;
+  --body:'Hiragino Sans','Hiragino Kaku Gothic ProN','Noto Sans JP',system-ui,sans-serif;
+  --safe-b:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:var(--concrete-900);
+  color:var(--chalk);
+  font-family:var(--body);
+  font-size:15px;line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+  overscroll-behavior-y:none;
+}
+/* コンクリートの粒状感（薄いノイズ） */
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.045;
+  background-image:radial-gradient(circle at 1px 1px,#fff 1px,transparent 0);
+  background-size:4px 4px;
+}
+button{font-family:inherit;color:inherit;border:none;background:none;cursor:pointer;font-size:inherit}
+input,select,textarea{font-family:inherit;font-size:16px}
+:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+
+/* ============================================================
+   共通レイアウト
+   ============================================================ */
+#app{position:relative;z-index:1;padding:0 16px 108px;max-width:560px;margin:0 auto}
+.view{display:none;animation:fade .22s ease}
+.view.on{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+header.top{
+  padding:18px 0 12px;display:flex;align-items:baseline;justify-content:space-between;
+  border-bottom:1px solid var(--concrete-500);margin-bottom:18px;
+}
+.brand{font-family:var(--disp);font-weight:700;font-size:19px;letter-spacing:.14em}
+.brand small{display:block;font-size:9px;letter-spacing:.34em;color:var(--chalk-dim);font-weight:300}
+.datetag{font-family:var(--disp);font-size:12px;letter-spacing:.16em;color:var(--chalk-dim)}
+
+/* 見出しの「ステンシル」ラベル */
+.eyebrow{
+  font-family:var(--disp);font-size:10px;font-weight:500;letter-spacing:.3em;
+  color:var(--chalk-dim);text-transform:uppercase;margin:0 0 8px;display:block;
+}
+.slab{
+  background:var(--concrete-700);border:1px solid var(--concrete-500);
+  border-top:2px solid var(--concrete-500);border-radius:var(--r);
+  padding:14px;margin-bottom:12px;
+}
+.muted{color:var(--chalk-dim);font-size:13px}
+.num{font-family:var(--disp);font-weight:500;font-variant-numeric:tabular-nums}
+
+/* ============================================================
+   正の字タリー（このアプリの主役）
+   ============================================================ */
+.tallybox{
+  background:var(--concrete-800);border:1px solid var(--concrete-500);
+  border-radius:var(--r);padding:16px 14px 12px;margin-bottom:14px;
+}
+.tally-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:12px}
+.tally-n{font-family:var(--disp);font-size:46px;font-weight:300;line-height:.9;color:var(--chalk)}
+.tally-n span{font-size:14px;letter-spacing:.2em;color:var(--chalk-dim);margin-left:6px}
+.tally-wrap{display:flex;flex-wrap:wrap;gap:10px;min-height:26px}
+.tally-wrap svg{width:26px;height:26px;flex:none}
+.tally-wrap path{
+  stroke:var(--chalk);stroke-width:2.1;stroke-linecap:round;fill:none;opacity:.82;
+}
+.tally-wrap svg.fresh path{animation:draw .5s ease forwards;stroke-dasharray:30;stroke-dashoffset:30}
+@keyframes draw{to{stroke-dashoffset:0}}
+.tally-more{font-family:var(--disp);font-size:13px;color:var(--chalk-dim);align-self:center}
+
+/* ============================================================
+   種目カード
+   ============================================================ */
+.ex{
+  width:100%;text-align:left;display:block;
+  background:var(--concrete-700);border:1px solid var(--concrete-500);
+  border-left:3px solid var(--concrete-500);border-radius:var(--r);
+  padding:12px 14px;margin-bottom:9px;transition:border-color .15s,background .15s;
+}
+.ex:active{background:var(--concrete-600)}
+.ex.done{border-left-color:var(--moss)}
+.ex.ready{border-left-color:var(--brass)}
+.ex-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.ex-name{font-weight:600;font-size:15px}
+.ex-step{font-family:var(--disp);font-size:11px;letter-spacing:.18em;color:var(--brass)}
+.ex-sub{font-size:12.5px;color:var(--chalk-dim);margin-top:3px}
+.ex-goal{font-family:var(--disp);font-size:12px;letter-spacing:.08em;color:var(--chalk);margin-top:6px}
+.ex-goal b{color:var(--brass);font-weight:500}
+
+/* 10段階のステップバー */
+.bar{display:flex;gap:2px;margin-top:9px}
+.bar i{flex:1;height:4px;background:var(--concrete-500);border-radius:1px}
+.bar i.f{background:var(--brass)}
+.bar i.c{background:var(--chalk);opacity:.35}
+
+.badge-mini{
+  font-family:var(--disp);font-size:9px;letter-spacing:.16em;padding:2px 6px;border-radius:2px;
+  background:var(--brass);color:#1E1E1B;font-weight:700;
+}
+.badge-done{background:var(--moss);color:#EDE8DA}
+.badge-rest{background:var(--rust);color:#EDE8DA}
+
+/* ============================================================
+   ボタン
+   ============================================================ */
+.btn{
+  display:block;width:100%;padding:14px;border-radius:var(--r);text-align:center;
+  font-weight:600;letter-spacing:.06em;border:1px solid var(--concrete-500);
+  background:var(--concrete-700);color:var(--chalk);
+}
+.btn:active{background:var(--concrete-600)}
+.btn.primary{background:var(--brass);color:#1E1E1B;border-color:var(--brass);font-weight:700}
+.btn.rest{border-color:var(--rust);color:#D9A88E}
+.btn.rest.on{background:var(--rust);color:#EDE8DA}
+.btn.ghost{background:transparent}
+.btn.sm{padding:9px;font-size:13px;width:auto}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+
+/* ============================================================
+   記録フォーム
+   ============================================================ */
+.setrow{
+  display:flex;align-items:center;gap:10px;padding:9px 0;
+  border-bottom:1px dashed var(--concrete-500);
+}
+.setrow:last-of-type{border-bottom:none}
+.setno{font-family:var(--disp);font-size:11px;letter-spacing:.16em;color:var(--chalk-dim);width:52px;flex:none}
+.stepper{display:flex;align-items:center;gap:0;margin-left:auto}
+.stepper button{
+  width:44px;height:44px;background:var(--concrete-600);border:1px solid var(--concrete-500);
+  font-family:var(--disp);font-size:22px;line-height:1;color:var(--chalk);
+}
+.stepper button:first-child{border-radius:var(--r) 0 0 var(--r)}
+.stepper button:last-child{border-radius:0 var(--r) var(--r) 0}
+.stepper button:active{background:var(--brass);color:#1E1E1B}
+.stepper input{
+  width:66px;height:44px;text-align:center;background:var(--concrete-800);
+  border:1px solid var(--concrete-500);border-left:none;border-right:none;
+  color:var(--chalk);font-family:var(--disp);font-size:19px;font-weight:500;
+}
+.hit{font-family:var(--disp);font-size:10px;letter-spacing:.14em;color:var(--moss);width:34px;flex:none}
+
+.steppick{display:flex;align-items:center;gap:10px}
+.steppick div{flex:1;text-align:center}
+.steppick b{display:block;font-family:var(--disp);font-size:18px;letter-spacing:.12em;font-weight:500}
+.steppick span{display:block;font-size:12px;color:var(--chalk-dim);margin-top:2px}
+.steppick button{width:46px;height:46px;flex:none;background:var(--concrete-600);border:1px solid var(--concrete-500);
+ border-radius:var(--r);font-family:var(--disp);font-size:22px;line-height:1}
+.steppick button:active{background:var(--brass);color:#1E1E1B}
+.steppick button[disabled]{opacity:.3}
+.tier{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:14px 12px;margin-bottom:8px;
+ border:1px solid var(--concrete-500);border-left:3px solid var(--concrete-500);border-radius:var(--r);background:var(--concrete-800)}
+.tier.got{border-left-color:var(--moss)}
+.tier.on{background:var(--brass);color:#1E1E1B;border-color:var(--brass);border-left-color:#1E1E1B}
+.tier .tk{width:20px;flex:none;text-align:center;font-size:14px;color:var(--moss)}
+.tier.on .tk{color:#1E1E1B}
+.tier .tn{flex:1;font-weight:700;font-size:15px}
+.tier .tn em{display:block;font-style:normal;font-size:10px;font-weight:400;letter-spacing:.14em;color:var(--brass);margin-top:2px}
+.tier.on .tn em{color:#1E1E1B;opacity:.7}
+.tier .tv{font-family:var(--disp);font-size:20px;font-weight:500;letter-spacing:.04em}
+.tier .tv span{font-size:11px;color:var(--chalk-dim);margin-left:2px}
+.tier.on .tv span{color:#1E1E1B}
+.rres{font-size:13px;color:var(--chalk-dim);margin-bottom:10px}
+.rres b{display:block;color:var(--chalk);font-size:16px;letter-spacing:.04em;margin-top:2px}
+.tcount div{display:flex;align-items:center;gap:9px;padding:6px 0}
+.tcount span{width:34px;flex:none;font-size:12px;color:var(--chalk-dim)}
+.tcount i{height:10px;border-radius:2px;background:var(--brass);min-width:2px;display:block}
+.tcount b{font-family:var(--disp);font-size:13px;color:var(--chalk);margin-left:auto}
+.rpe{display:flex;gap:6px}
+.rpe button{
+  flex:1;padding:11px 0;border:1px solid var(--concrete-500);border-radius:var(--r);
+  font-family:var(--disp);font-size:15px;color:var(--chalk-dim);background:var(--concrete-800);
+}
+.rpe button.on{background:var(--brass);color:#1E1E1B;border-color:var(--brass);font-weight:700}
+textarea{
+  width:100%;background:var(--concrete-800);border:1px solid var(--concrete-500);
+  border-radius:var(--r);color:var(--chalk);padding:10px;min-height:64px;resize:vertical;
+}
+.std{display:flex;gap:8px;margin-top:10px}
+.std div{
+  flex:1;text-align:center;padding:8px 4px;border:1px solid var(--concrete-500);border-radius:var(--r);
+  background:var(--concrete-800);
+}
+.std span{display:block;font-size:9px;letter-spacing:.2em;color:var(--chalk-dim);font-family:var(--disp)}
+.std b{font-family:var(--disp);font-size:16px;font-weight:500}
+.std.hi b{color:var(--brass)}
+
+/* ============================================================
+   進捗（グラフ・カレンダー）
+   ============================================================ */
+.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:12px;-webkit-overflow-scrolling:touch}
+.chips button{
+  flex:none;padding:7px 12px;border:1px solid var(--concrete-500);border-radius:20px;
+  font-size:12.5px;color:var(--chalk-dim);background:var(--concrete-800);white-space:nowrap;
+}
+.chips button.on{background:var(--chalk);color:var(--concrete-900);border-color:var(--chalk);font-weight:600}
+svg.chart{width:100%;height:auto;display:block;overflow:visible}
+.cstat{display:flex;gap:6px;margin-top:12px}
+.cstat div{flex:1;text-align:center;background:var(--concrete-800);border:1px solid var(--concrete-500);border-radius:2px;padding:7px 2px}
+.cstat b{display:block;font-family:var(--disp);font-size:17px;font-weight:500}
+.cstat span{font-size:9.5px;color:var(--chalk-dim)}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:8px}
+.cal div{
+  aspect-ratio:1;border-radius:2px;background:var(--concrete-800);border:1px solid var(--concrete-600);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--disp);font-size:11px;color:var(--chalk-dim);
+}
+.cal div.t{background:var(--brass);color:#1E1E1B;border-color:var(--brass);font-weight:700}
+.cal div.r{background:var(--rust);color:#EDE8DA;border-color:var(--rust)}
+.cal div.today{outline:2px solid var(--chalk);outline-offset:-2px}
+.cal div.pad{background:none;border:none}
+.calhead{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:12px}
+.calhead span{text-align:center;font-family:var(--disp);font-size:9px;letter-spacing:.1em;color:var(--chalk-dim)}
+
+/* ============================================================
+   階級・実績
+   ============================================================ */
+.rank{text-align:center;padding:22px 14px}
+.rank-name{font-size:26px;font-weight:700;letter-spacing:.1em;margin:6px 0 2px}
+.rank-xp{font-family:var(--disp);font-size:12px;letter-spacing:.2em;color:var(--brass)}
+.prog{height:5px;background:var(--concrete-600);border-radius:3px;margin:14px 0 6px;overflow:hidden}
+.prog i{display:block;height:100%;background:var(--brass)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.stats div{background:var(--concrete-700);border:1px solid var(--concrete-500);border-radius:var(--r);padding:12px 6px;text-align:center}
+.stats b{display:block;font-family:var(--disp);font-size:24px;font-weight:500}
+.stats span{font-size:10.5px;color:var(--chalk-dim)}
+.ghead{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;font-weight:700;
+ padding-bottom:8px;margin-bottom:4px;border-bottom:1px solid var(--concrete-500)}
+.ghead span{font-family:var(--disp);font-size:11px;letter-spacing:.14em;color:var(--brass);font-weight:500}
+.abar{height:3px;background:var(--concrete-600);border-radius:2px;margin:5px 0 4px;overflow:hidden}
+.abar i{display:block;height:100%;background:var(--brass);opacity:.65}
+.ach.got .abar i{opacity:1}
+.ach{display:flex;align-items:center;gap:11px;padding:9px 0;border-bottom:1px solid var(--concrete-600)}
+.ach:last-child{border-bottom:none}
+.ach .k{
+  width:34px;height:34px;flex:none;border-radius:2px;border:1px solid var(--concrete-500);
+  display:flex;align-items:center;justify-content:center;font-family:var(--disp);font-size:15px;
+  color:var(--concrete-500);background:var(--concrete-800);
+}
+.ach.got .k{background:var(--brass);border-color:var(--brass);color:#1E1E1B;font-weight:700}
+.ach.got .t{color:var(--chalk)}
+.ach .t{font-size:13.5px;color:var(--chalk-dim);font-weight:600}
+.ach .d{font-size:11.5px;color:var(--chalk-dim)}
+
+/* ============================================================
+   タブバー
+   ============================================================ */
+nav{
+  position:fixed;left:0;right:0;bottom:0;z-index:20;
+  background:rgba(30,30,27,.94);backdrop-filter:blur(12px);
+  border-top:1px solid var(--concrete-500);
+  padding-bottom:var(--safe-b);
+  display:flex;
+}
+nav button{flex:1;padding:9px 0 8px;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--chalk-dim)}
+nav button.on{color:var(--brass)}
+nav svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+nav span{font-size:9.5px;letter-spacing:.08em}
+
+
+/* ============================================================
+   ゲーム要素：刑期・任務・看守・差し入れカード
+   ============================================================ */
+.term{background:linear-gradient(180deg,var(--concrete-800),var(--concrete-700));border:1px solid var(--concrete-500);border-radius:var(--r);padding:16px 14px;margin-bottom:12px;position:relative;overflow:hidden}
+.term-top{display:flex;align-items:flex-start;justify-content:space-between}
+.term-n{font-family:var(--disp);font-size:42px;font-weight:300;line-height:.95}
+.term-n span{font-size:13px;color:var(--chalk-dim);margin-left:5px;letter-spacing:.1em}
+.term-cut{font-family:var(--disp);font-size:13px;color:var(--brass);letter-spacing:.1em}
+.term-bar{height:9px;background:var(--concrete-600);border-radius:5px;margin-top:14px;overflow:hidden}
+.term-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--rust),var(--brass));transition:width .5s ease}
+.term-bar b{position:absolute;top:-2px;width:1px;height:13px;background:rgba(237,232,218,.45)}
+.cutbreak{display:flex;gap:6px;margin-top:12px}
+.cutbreak div{flex:1;text-align:center;background:rgba(0,0,0,.22);border-radius:2px;padding:6px 2px}
+.cutbreak b{display:block;font-family:var(--disp);font-size:15px;color:var(--brass);font-weight:500}
+.cutbreak b::before{content:'\2212'}
+.cutbreak b::after{content:'日';font-size:9px;color:var(--chalk-dim);margin-left:1px}
+.cutbreak span{font-size:9.5px;color:var(--chalk-dim)}
+.term-n span{font-size:13px;color:var(--chalk-dim);margin:0 2px 0 3px;letter-spacing:.06em}
+.term-foot{display:flex;justify-content:space-between;font-size:10px;color:var(--chalk-dim);margin-top:6px;font-family:var(--disp);letter-spacing:.14em}
+.term.free{border-color:var(--brass)}
+
+.quest{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--concrete-600)}
+.quest:last-child{border-bottom:none}
+.q-box{width:20px;height:20px;flex:none;border:1.5px solid var(--concrete-500);border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:12px;color:transparent}
+.quest.ok .q-box{background:var(--moss);border-color:var(--moss);color:#EDE8DA}
+.quest .q-t{flex:1;font-size:13.5px}
+.quest.ok .q-t{color:var(--chalk-dim);text-decoration:line-through}
+.q-xp{font-family:var(--disp);font-size:11px;color:var(--brass);letter-spacing:.1em;flex:none}
+
+.guard{display:flex;align-items:center;gap:8px;margin-top:9px}
+.guard-n{font-size:11px;color:var(--chalk-dim)}
+.hp{display:flex;gap:3px;margin-left:auto}
+.hp i{width:15px;height:6px;border-radius:1px;background:var(--concrete-500)}
+.hp i.d{background:var(--rust)}
+.hp i.k{background:var(--brass)}
+
+.combo{font-family:var(--disp);font-size:11px;letter-spacing:.14em;color:var(--brass);border:1px solid var(--brass-dim);border-radius:2px;padding:3px 7px;white-space:nowrap}
+
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.card{background:var(--concrete-800);border:1px solid var(--concrete-500);border-radius:var(--r);padding:9px 7px;text-align:center;min-height:74px;display:flex;flex-direction:column;justify-content:center;position:relative}
+.card.r2{border-color:var(--brass-dim)}
+.card.r3{border-color:var(--brass);box-shadow:inset 0 0 20px rgba(201,162,39,.15)}
+.card.lock{opacity:.3}
+.card b{font-size:11px;display:block;line-height:1.35;font-weight:600}
+.card em{font-style:normal;font-family:var(--disp);font-size:8.5px;letter-spacing:.16em;color:var(--chalk-dim);display:block;margin-top:4px}
+.card u{text-decoration:none;position:absolute;top:3px;right:5px;font-family:var(--disp);font-size:9px;color:var(--brass)}
+.cardbig{border:1px solid var(--brass);border-radius:var(--r);padding:16px;background:var(--concrete-800);margin:4px 0 14px;text-align:center}
+.cardbig .rar{font-family:var(--disp);font-size:9px;letter-spacing:.3em;color:var(--brass)}
+.cardbig .nm{font-size:16px;font-weight:700;margin:6px 0 8px}
+.cardbig .qt{font-size:12.5px;color:var(--chalk-dim);line-height:1.7}
+.gain{font-family:var(--disp);font-size:38px;font-weight:300;color:var(--brass);line-height:1}
+.gain span{font-size:13px;letter-spacing:.16em}
+
+
+/* ============================================================
+   絵とアニメーション
+   ============================================================ */
+@keyframes shake{0%,100%{transform:translateX(0) rotate(0)}15%{transform:translateX(-7px) rotate(-3deg)}
+ 32%{transform:translateX(6px) rotate(3deg)}50%{transform:translateX(-4px) rotate(-2deg)}70%{transform:translateX(3px)}85%{transform:translateX(-1px)}}
+@keyframes flashw{0%,100%{filter:none}25%{filter:brightness(3) saturate(.2)}}
+@keyframes fall{0%{transform:none;opacity:1}100%{transform:translateY(16px) rotate(-16deg);opacity:.3;filter:grayscale(1)}}
+@keyframes slash{0%{opacity:1;transform:rotate(-32deg) scaleX(0)}45%{opacity:1;transform:rotate(-32deg) scaleX(1.5)}100%{opacity:0;transform:rotate(-32deg) scaleX(1.7)}}
+@keyframes dmgpop{0%{opacity:1;transform:translate(-50%,0) scale(.7)}25%{transform:translate(-50%,-12px) scale(1.15)}100%{opacity:0;transform:translate(-50%,-44px) scale(1)}}
+@keyframes stampIn{0%{transform:scale(2.8) rotate(-18deg);opacity:0}55%{transform:scale(.92) rotate(-7deg);opacity:1}75%{transform:scale(1.04) rotate(-5deg)}100%{transform:scale(1) rotate(-6deg)}}
+@keyframes flipin{0%{transform:perspective(600px) rotateY(96deg);opacity:0}55%{opacity:1}100%{transform:perspective(600px) rotateY(0);opacity:1}}
+@keyframes shim{0%{transform:translateX(-120%)}100%{transform:translateX(420%)}}
+@keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-3.5px)}}
+@keyframes spark{0%{opacity:1;transform:translate(0,0) scale(1)}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(.2)}}
+@keyframes glow{0%,100%{opacity:.35}50%{opacity:.85}}
+@keyframes risein{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+
+/* 独房シーン（トップの絵） */
+.cell{position:relative;border:1px solid var(--concrete-500);border-radius:var(--r);overflow:hidden;margin-bottom:12px;background:#15150F}
+.cell svg{display:block;width:100%;height:auto}
+.cell .av{animation:floaty 4.5s ease-in-out infinite;transform-origin:center bottom}
+.cell-cap{position:absolute;left:12px;bottom:9px;font-family:var(--disp);font-size:9.5px;letter-spacing:.28em;color:rgba(237,232,218,.5)}
+
+/* 刑期バーに走る光 */
+.term-bar{position:relative}
+.term-bar::after{content:'';position:absolute;top:0;left:0;width:34%;height:100%;
+ background:linear-gradient(90deg,transparent,rgba(255,255,255,.32),transparent);animation:shim 3.4s ease-in-out infinite}
+
+/* 看守スプライト */
+.gsprite{position:relative;display:flex;justify-content:center;padding:6px 0 2px;animation:floaty 3.4s ease-in-out infinite}
+.gsprite.gh,.gsprite.dead{animation:none}
+.gsprite svg{width:118px;height:118px;transform-origin:center bottom}
+.gsprite.gh svg{animation:shake .5s cubic-bezier(.36,.07,.19,.97),flashw .5s ease}
+.gsprite.dead svg{animation:fall .7s ease forwards}
+.gsprite .fx{position:absolute;top:38%;left:50%;width:104px;height:4px;margin-left:-52px;border-radius:2px;
+ background:linear-gradient(90deg,transparent,var(--chalk),transparent);opacity:0;pointer-events:none}
+.gsprite.gh .fx{animation:slash .42s ease-out}
+.gsprite .dmg{position:absolute;top:26%;left:50%;font-family:var(--disp);font-size:26px;font-weight:700;
+ color:var(--rust);text-shadow:0 2px 0 #1E1E1B;opacity:0;pointer-events:none}
+.gsprite.gh .dmg{animation:dmgpop .85s ease-out}
+.modal .gsprite svg{width:84px;height:84px}
+.gname{text-align:center;font-family:var(--disp);letter-spacing:.22em;font-size:11px;color:var(--chalk-dim);margin-top:-2px}
+.gname b{color:var(--chalk);font-weight:500;letter-spacing:.1em}
+.ghp{display:flex;gap:4px;justify-content:center;margin-top:9px}
+.ghp i{width:26px;height:9px;border-radius:2px;background:var(--concrete-600);border:1px solid var(--concrete-500)}
+.ghp i.d{background:var(--rust);border-color:var(--rust)}
+.ghp i.k{background:var(--brass);border-color:var(--brass);animation:glow 1.6s ease-in-out infinite}
+
+/* 種目カードの看守アイコン */
+.ex{display:flex;gap:12px;align-items:flex-start}
+.ex .icn{width:44px;height:44px;flex:none;margin-top:2px;opacity:.9}
+.ex .icn svg{width:100%;height:100%}
+.ex.done .icn{filter:grayscale(1);opacity:.4}
+.ex .bd{flex:1;min-width:0}
+
+/* カードのめくり演出 */
+.cardbig{animation:flipin .55s ease-out}
+.stamp.big{animation:stampIn .6s cubic-bezier(.2,1.6,.4,1) both;display:inline-block}
+.view.on{animation:risein .3s ease}
+.sparkbox{position:absolute;inset:0;pointer-events:none;overflow:visible}
+.sparkbox i{position:absolute;top:50%;left:50%;width:4px;height:4px;border-radius:50%;background:var(--brass);animation:spark .7s ease-out forwards}
+
+/* トースト・モーダル */
+#toast{
+  position:fixed;left:50%;bottom:calc(84px + var(--safe-b));transform:translate(-50%,14px);
+  background:var(--chalk);color:var(--concrete-900);padding:11px 18px;border-radius:var(--r);
+  font-size:13.5px;font-weight:600;opacity:0;pointer-events:none;transition:.25s;z-index:60;
+  max-width:88vw;text-align:center;
+}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+.modal{position:fixed;inset:0;background:rgba(15,15,13,.86);z-index:50;display:none;align-items:center;justify-content:center;padding:24px}
+.modal.on{display:flex}
+.modal .box{background:var(--concrete-700);border:1px solid var(--brass);border-radius:var(--r);padding:22px;max-width:340px;width:100%;text-align:center}
+.stamp{font-family:var(--disp);font-size:11px;letter-spacing:.34em;color:var(--brass);margin-bottom:8px}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <header class="top">
+    <div class="brand">獄中日誌<small>PRISONER TRAINING</small></div>
+    <div class="datetag" id="datetag"></div>
+  </header>
+
+  <!-- ===== 監房（ホーム） ===== -->
+  <section class="view on" id="v-home"></section>
+  <!-- ===== 記録 ===== -->
+  <section class="view" id="v-log"></section>
+  <!-- ===== 進捗 ===== -->
+  <section class="view" id="v-prog"></section>
+  <!-- ===== 階級 ===== -->
+  <section class="view" id="v-rank"></section>
+</div>
+
+<nav id="nav"></nav>
+<div id="toast"></div>
+<div class="modal" id="modal"><div class="box" id="modalBox"></div></div>
+
+<script>
+/* ============================================================
+   1. データ定義：ビッグ6 × 10ステップ
+   各ステップ = [セット数, 回数] を 初級/中級/進級 の3段階で持つ
+   unit:'s' は「秒キープ」種目
+   ============================================================ */
+const EX=[
+{id:'pu',n:'プッシュアップ',t:'胸・肩・三頭',s:[
+['ウォール・プッシュアップ',[1,10],[2,25],[3,50]],
+['インクライン・プッシュアップ',[1,10],[2,20],[3,40]],
+['ニーリング・プッシュアップ',[1,10],[2,15],[3,30]],
+['ハーフ・プッシュアップ',[1,8],[2,12],[2,25]],
+['フル・プッシュアップ',[1,5],[2,10],[2,20]],
+['クローズ・プッシュアップ',[1,5],[2,10],[2,20]],
+['アンイーブン・プッシュアップ',[1,5],[2,10],[2,20]],
+['ハーフ・ワンアーム・プッシュアップ',[1,5],[2,10],[2,20]],
+['レバー・プッシュアップ',[1,5],[2,10],[2,20]],
+['ワンアーム・プッシュアップ',[1,5],[2,10],[2,100]]]},
+{id:'sq',n:'スクワット',t:'脚・尻',s:[
+['ショルダースタンド・スクワット',[1,10],[2,25],[3,50]],
+['ジャックナイフ・スクワット',[1,10],[2,20],[3,40]],
+['サポーテッド・スクワット',[1,10],[2,15],[3,30]],
+['ハーフ・スクワット',[1,8],[2,35],[2,50]],
+['フル・スクワット',[1,5],[2,10],[2,30]],
+['クローズ・スクワット',[1,5],[2,10],[2,20]],
+['アンイーブン・スクワット',[1,5],[2,10],[2,20]],
+['ハーフ・ワンレッグ・スクワット',[1,5],[2,10],[2,20]],
+['アシスト・ワンレッグ・スクワット',[1,5],[2,10],[2,20]],
+['ワンレッグ・スクワット',[1,5],[2,10],[2,50]]]},
+{id:'pl',n:'プルアップ',t:'背中・二頭',s:[
+['バーティカル・プル',[1,10],[2,20],[3,40]],
+['ホリゾンタル・プル',[1,10],[2,20],[3,30]],
+['ジャックナイフ・プル',[1,10],[2,15],[3,20]],
+['ハーフ・プルアップ',[1,8],[2,11],[2,15]],
+['フル・プルアップ',[1,5],[2,8],[2,10]],
+['クローズ・プルアップ',[1,5],[2,8],[2,10]],
+['アンイーブン・プルアップ',[1,5],[2,7],[2,9]],
+['ハーフ・ワンアーム・プルアップ',[1,4],[2,6],[2,8]],
+['アシスト・ワンアーム・プルアップ',[1,3],[2,5],[2,7]],
+['ワンアーム・プルアップ',[1,1],[2,3],[2,6]]]},
+{id:'lr',n:'レッグレイズ',t:'腹・体幹',s:[
+['ニー・タック',[1,10],[2,25],[3,40]],
+['フラット・ニーレイズ',[1,10],[2,20],[3,35]],
+['フラット・ベントレッグレイズ',[1,10],[2,15],[3,30]],
+['フラット・フロッグレイズ',[1,8],[2,15],[3,25]],
+['フラット・ストレートレッグレイズ',[1,5],[2,10],[2,20]],
+['ハンギング・ニーレイズ',[1,5],[2,10],[2,15]],
+['ハンギング・ベントレッグレイズ',[1,5],[2,10],[2,15]],
+['ハンギング・フロッグレイズ',[1,5],[2,10],[2,15]],
+['パーシャル・ストレートレッグレイズ',[1,5],[2,10],[2,15]],
+['ハンギング・ストレートレッグレイズ',[1,5],[2,10],[2,30]]]},
+{id:'br',n:'ブリッジ',t:'背面・脊柱',s:[
+['ショート・ブリッジ',[1,10],[2,25],[3,50]],
+['ストレート・ブリッジ',[1,10],[2,20],[3,40]],
+['アングルド・ブリッジ',[1,8],[2,15],[3,30]],
+['ヘッド・ブリッジ',[1,8],[2,15],[2,25]],
+['ハーフ・ブリッジ',[1,8],[2,15],[2,20]],
+['フル・ブリッジ',[1,6],[2,10],[2,15]],
+['ウォールウォーキング・ブリッジ（下り）',[1,3],[2,6],[2,10]],
+['ウォールウォーキング・ブリッジ（上り）',[1,2],[2,4],[2,8]],
+['クロージング・ブリッジ',[1,1],[2,3],[2,6]],
+['スタンド・トゥ・スタンド・ブリッジ',[1,1],[2,3],[2,30]]]},
+{id:'hs',n:'ハンドスタンド・プッシュアップ',t:'肩・上背',s:[
+['ウォール・ヘッドスタンド',[1,30],[1,60],[1,120],'s'],
+['クロウ・スタンド',[1,10],[1,30],[1,60],'s'],
+['ウォール・ハンドスタンド',[1,30],[1,60],[1,120],'s'],
+['ハーフ・ハンドスタンド・プッシュアップ',[1,5],[2,10],[2,20]],
+['ハンドスタンド・プッシュアップ',[1,5],[2,10],[2,15]],
+['クローズ・ハンドスタンド・プッシュアップ',[1,5],[2,9],[2,12]],
+['アンイーブン・ハンドスタンド・プッシュアップ',[1,5],[2,8],[2,10]],
+['ハーフ・ワンアーム・ハンドスタンドPU',[1,4],[2,6],[2,8]],
+['レバー・ハンドスタンド・プッシュアップ',[1,3],[2,4],[2,6]],
+['ワンアーム・ハンドスタンド・プッシュアップ',[1,1],[2,2],[2,5]]]}
+];
+
+/* [減刑率(%), 階級名] 15段階 */
+const RANKS=[[0,'新入り'],[2,'雑居房'],[5,'囚人'],[9,'常習犯'],[14,'模範囚'],[20,'古参'],
+             [27,'房長'],[35,'監房長'],[44,'主'],[54,'顔役'],[64,'幹部'],
+             [74,'仮釈放審査'],[84,'仮釈放'],[92,'満期間近'],[100,'出所']];
+/** 階級インデックス → アバターの見た目7段階へ変換 */
+function avTier(i){return Math.max(0,Math.min(6,Math.round(i*6/(RANKS.length-1))));}
+
+/* --- ゲーム要素のデータ --- */
+const TERM=10950;                             // 初期刑期＝30年。プログラム完遂が満期の目安
+const GUARD={pu:'鉄腕',sq:'鉄脚',pl:'鉤爪',lr:'鉄芯',br:'蛇骨',hs:'逆天'};
+const RAR=['','並','稀','極'];
+
+/* 差し入れカード（記録するたび1枚引ける） */
+const CARDS=[
+{id:'c1',n:'冷たい床',q:'床は嘘をつかない。やったか、やらなかったか、それだけを覚えている。',r:1},
+{id:'c2',n:'鉄格子',q:'数えるなら格子ではなく、回数を数えろ。',r:1},
+{id:'c3',n:'消灯前の十分',q:'一番伸びるのは、やめたくなった直後の十分だ。',r:1},
+{id:'c4',n:'洗いざらしのシャツ',q:'派手さはいらない。乾いていればそれでいい。',r:1},
+{id:'c5',n:'錆びた蝶番',q:'動かさない関節から先に錆びていく。',r:1},
+{id:'c6',n:'一杯の水',q:'回復は怠けではない。次の一発の準備だ。',r:1},
+{id:'c7',n:'壁の傷跡',q:'昨日の自分が残していった目印。',r:1},
+{id:'c8',n:'硬いパン',q:'噛む力も鍛錬のうち。',r:1},
+{id:'c9',n:'灰色の空',q:'天気は選べない。やるかどうかは選べる。',r:1},
+{id:'c10',n:'数取りの石',q:'一回を軽く見た者は、百回にたどり着かない。',r:1},
+{id:'c11',n:'古い毛布',q:'眠りは最強の道具だ。',r:1},
+{id:'c12',n:'面会の手紙',q:'誰かのために強くなる日が、あってもいい。',r:1},
+{id:'c13',n:'看守の鍵束',q:'基準を満たした者にだけ、次の扉が開く。',r:2},
+{id:'c14',n:'中庭の陽射し',q:'続けた者だけが浴びられる時間がある。',r:2},
+{id:'c15',n:'古参の助言',q:'フォームを崩した一回は、零回より悪い。',r:2},
+{id:'c16',n:'道具のない部屋',q:'何もないことは、言い訳にならないと知った。',r:2},
+{id:'c17',n:'独房の鏡',q:'比べる相手は、昨日そこに映っていた男だけだ。',r:2},
+{id:'c18',n:'出所許可証',q:'刑期は、与えられるものではなく削るものだった。',r:3},
+{id:'c19',n:'伝説の囚人',q:'十年続けた男は、十年ぶんの体をしている。',r:3},
+{id:'c20',n:'夜明けの門',q:'門が開くのはいつも、続けた者の前だけだ。',r:3}
+];
+
+/* 今日の任務（日付から自動生成。日が変われば入れ替わる） */
+const QPOOL=[
+{id:'ex2',t:'2種目を記録する',x:40,c:L=>new Set(L.map(l=>l.ex)).size>=2},
+{id:'ex3',t:'3種目を記録する',x:60,c:L=>new Set(L.map(l=>l.ex)).size>=3},
+{id:'ex4',t:'4種目を記録する',x:90,c:L=>new Set(L.map(l=>l.ex)).size>=4},
+{id:'mid1',t:'中級以上を1つ達成する',x:40,c:L=>L.some(l=>tierOf(l)>=2)},
+{id:'mid2',t:'中級以上を2種目で達成する',x:70,c:L=>L.filter(l=>tierOf(l)>=2).length>=2},
+{id:'adv',t:'上級（進級基準）を達成する',x:90,c:L=>L.some(l=>tierOf(l)===3)},
+{id:'memo',t:'気づきをメモに残す',x:20,c:L=>L.some(l=>l.memo&&l.memo.length>0)},
+{id:'rpe',t:'きつさを記録する',x:20,c:L=>L.some(l=>l.rpe>0)},
+{id:'hard',t:'ブリッジかハンドスタンド系を記録する',x:40,c:L=>L.some(l=>l.ex==='hs'||l.ex==='br')},
+{id:'low',t:'スクワットかレッグレイズを記録する',x:30,c:L=>L.some(l=>l.ex==='sq'||l.ex==='lr')},
+{id:'upper',t:'プッシュアップかプルアップを記録する',x:30,c:L=>L.some(l=>l.ex==='pu'||l.ex==='pl')}
+];
+function hash(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;}
+function rnd(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function todayQuests(){
+  const r=rnd(hash(today())),p=QPOOL.slice(),out=[];
+  for(let i=0;i<3;i++)out.push(p.splice(Math.floor(r()*p.length),1)[0]);
+  return out;
+}
+
+
+/* 実績：g=分類, n=目標値, v=現在値, u=単位。v(db)>=n で解除 */
+const ACH=[
+{id:'k3',g:'継続',t:'三日坊主克服',n:3,u:'日連続',v:d=>streak(d)},
+{id:'k7',g:'継続',t:'一週間の刑期',n:7,u:'日連続',v:d=>streak(d)},
+{id:'k14',g:'継続',t:'二週間の勤め',n:14,u:'日連続',v:d=>streak(d)},
+{id:'k30',g:'継続',t:'一ヶ月の刑期',n:30,u:'日連続',v:d=>streak(d)},
+{id:'k60',g:'継続',t:'二ヶ月の勤め',n:60,u:'日連続',v:d=>streak(d)},
+{id:'k100',g:'継続',t:'百日の刑',n:100,u:'日連続',v:d=>streak(d)},
+{id:'k180',g:'継続',t:'半年の刑期',n:180,u:'日連続',v:d=>streak(d)},
+{id:'k365',g:'継続',t:'不動の一年',n:365,u:'日連続',v:d=>streak(d)},
+{id:'d1',g:'通算',t:'初日',n:1,u:'日',v:d=>trainDays(d).length},
+{id:'d10',g:'通算',t:'新入りの十日',n:10,u:'日',v:d=>trainDays(d).length},
+{id:'d30',g:'通算',t:'房に馴染む',n:30,u:'日',v:d=>trainDays(d).length},
+{id:'d50',g:'通算',t:'皆勤の囚人',n:50,u:'日',v:d=>trainDays(d).length},
+{id:'d100',g:'通算',t:'百日通う',n:100,u:'日',v:d=>trainDays(d).length},
+{id:'d200',g:'通算',t:'二百日通う',n:200,u:'日',v:d=>trainDays(d).length},
+{id:'d365',g:'通算',t:'一年の勤め',n:365,u:'日',v:d=>trainDays(d).length},
+{id:'d700',g:'通算',t:'長期囚',n:700,u:'日',v:d=>trainDays(d).length},
+{id:'s100',g:'鍛錬',t:'百セット',n:100,u:'セット',v:d=>totalSets(d)},
+{id:'s500',g:'鍛錬',t:'五百セット',n:500,u:'セット',v:d=>totalSets(d)},
+{id:'s1k',g:'鍛錬',t:'千セット',n:1000,u:'セット',v:d=>totalSets(d)},
+{id:'s3k',g:'鍛錬',t:'三千セット',n:3000,u:'セット',v:d=>totalSets(d)},
+{id:'s1w',g:'鍛錬',t:'一万セット',n:10000,u:'セット',v:d=>totalSets(d)},
+{id:'v1w',g:'鍛錬',t:'一万回',n:10000,u:'回',v:d=>totalReps(d)},
+{id:'r50',g:'鍛錬',t:'五十記録',n:50,u:'記録',v:d=>d.logs.length},
+{id:'r200',g:'鍛錬',t:'二百記録',n:200,u:'記録',v:d=>d.logs.length},
+{id:'r600',g:'鍛錬',t:'六百記録',n:600,u:'記録',v:d=>d.logs.length},
+{id:'mid10',g:'段階',t:'中級を十回',n:10,u:'回',v:d=>midCount(d)},
+{id:'mid60',g:'段階',t:'中級を六十回',n:60,u:'回',v:d=>midCount(d)},
+{id:'ad1',g:'段階',t:'初めての上級',n:1,u:'回',v:d=>advCount(d)},
+{id:'ad10',g:'段階',t:'上級を十回',n:10,u:'回',v:d=>advCount(d)},
+{id:'ad50',g:'段階',t:'上級を五十回',n:50,u:'回',v:d=>advCount(d)},
+{id:'ad150',g:'段階',t:'上級を百五十回',n:150,u:'回',v:d=>advCount(d)},
+{id:'v10w',g:'鍛錬',t:'十万回',n:100000,u:'回',v:d=>totalReps(d)},
+{id:'rest10',g:'鍛錬',t:'休息も鍛錬',n:10,u:'回',v:d=>d.rest.length},
+{id:'rest50',g:'鍛錬',t:'回復の達人',n:50,u:'回',v:d=>d.rest.length},
+{id:'p1',g:'進級',t:'初進級',n:1,u:'回',v:d=>d.promotions.length},
+{id:'p5',g:'進級',t:'五段の壁',n:5,u:'回',v:d=>d.promotions.length},
+{id:'p10',g:'進級',t:'十段の壁',n:10,u:'回',v:d=>d.promotions.length},
+{id:'p25',g:'進級',t:'半ばを越える',n:25,u:'回',v:d=>d.promotions.length},
+{id:'p54',g:'進級',t:'全進級制覇',n:54,u:'回',v:d=>d.promotions.length},
+{id:'t20',g:'進級',t:'合計20ステップ',n:20,u:'段',v:d=>stepSum(d)},
+{id:'t30',g:'進級',t:'合計30ステップ',n:30,u:'段',v:d=>stepSum(d)},
+{id:'t45',g:'進級',t:'合計45ステップ',n:45,u:'段',v:d=>stepSum(d)},
+{id:'t60',g:'進級',t:'全ステップ到達',n:60,u:'段',v:d=>stepSum(d)},
+{id:'a3',g:'進級',t:'全房制圧（全種目S3）',n:6,u:'種目',v:d=>EX.filter(e=>(d.steps[e.id]||1)>=3).length},
+{id:'a5',g:'進級',t:'中堅囚（全種目S5）',n:6,u:'種目',v:d=>EX.filter(e=>(d.steps[e.id]||1)>=5).length},
+{id:'a8',g:'進級',t:'上級囚（全種目S8）',n:6,u:'種目',v:d=>EX.filter(e=>(d.steps[e.id]||1)>=8).length},
+{id:'m1',g:'進級',t:'一棟制覇',n:1,u:'種目修了',v:d=>masterCount()},
+{id:'m3',g:'進級',t:'三棟制覇',n:3,u:'種目修了',v:d=>masterCount()},
+{id:'m6',g:'進級',t:'監獄王',n:6,u:'種目修了',v:d=>masterCount()},
+{id:'q10',g:'任務',t:'模範囚',n:10,u:'個',v:d=>questCount(d)},
+{id:'q50',g:'任務',t:'命令遵守',n:50,u:'個',v:d=>questCount(d)},
+{id:'q150',g:'任務',t:'忠実な囚人',n:150,u:'個',v:d=>questCount(d)},
+{id:'q400',g:'任務',t:'完全服従',n:400,u:'個',v:d=>questCount(d)},
+{id:'c5',g:'収集',t:'差し入れ初め',n:5,u:'種',v:d=>Object.keys(d.cards||{}).length},
+{id:'c10',g:'収集',t:'差し入れ好き',n:10,u:'種',v:d=>Object.keys(d.cards||{}).length},
+{id:'c15',g:'収集',t:'収集家',n:15,u:'種',v:d=>Object.keys(d.cards||{}).length},
+{id:'c20',g:'収集',t:'完全収集',n:20,u:'種',v:d=>Object.keys(d.cards||{}).length},
+{id:'cr',g:'収集',t:'極を引く',n:1,u:'枚',v:d=>CARDS.filter(c=>c.r===3&&(d.cards||{})[c.id]).length},
+{id:'free',g:'出所',t:'出所',n:TERM,u:'日ぶん減刑',v:d=>cutDays(d)}
+];
+const AGROUPS=['継続','通算','鍛錬','段階','進級','任務','収集','出所'];
+function achDone(a,d){return a.v(d)>=a.n;}
+function stepSum(d){return EX.reduce((x,e)=>x+(d.steps[e.id]||1),0);}
+function totalReps(d){return d.logs.reduce((a,l)=>a+repsOf(l),0);}
+
+/* ============================================================
+   2. 保存まわり（localStorage）
+   ============================================================ */
+const KEY='pt_v1';
+let memoryOnly=false;
+let db=load();
+
+function blank(){
+  const st={};EX.forEach(e=>st[e.id]=1);
+  return {v:1,steps:st,logs:[],rest:[],promotions:[],cards:{},quests:{}};
+}
+function load(){
+  try{
+    const raw=localStorage.getItem(KEY);
+    if(raw){const d=JSON.parse(raw);const b=blank();
+      return {v:1,steps:Object.assign(b.steps,d.steps||{}),logs:d.logs||[],rest:d.rest||[],
+              promotions:d.promotions||[],cards:d.cards||{},quests:d.quests||{}};}
+  }catch(e){memoryOnly=true;}
+  return blank();
+}
+function save(){
+  try{localStorage.setItem(KEY,JSON.stringify(db));}
+  catch(e){memoryOnly=true;}
+}
+
+/* ============================================================
+   3. 小さな便利関数
+   ============================================================ */
+const $=s=>document.querySelector(s);
+function ymd(d){const p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());}
+function today(){return ymd(new Date());}
+function shift(str,n){const[a,b,c]=str.split('-').map(Number);const d=new Date(a,b-1,c);d.setDate(d.getDate()+n);return ymd(d);}
+function ex(id){return EX.find(e=>e.id===id);}
+function step(id){return db.steps[id]||1;}
+function stepData(id,n){const s=ex(id).s[n-1];return {name:s[0],beg:s[1],int:s[2],pro:s[3],unit:s[4]||'r'};}
+function u(unit,v){return unit==='s'?v+'秒':v+'回';}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(t._x);t._x=setTimeout(()=>t.classList.remove('on'),2100);}
+
+function trainDays(d){return [...new Set(d.logs.map(l=>l.date))].sort();}
+function totalSets(d){return d.logs.reduce((a,l)=>a+setsOf(l),0);}
+function activeDays(d){return new Set([...d.logs.map(l=>l.date),...d.rest]);}
+function streak(d){
+  const set=activeDays(d);let cur=today(),n=0;
+  if(!set.has(cur))cur=shift(cur,-1);              // 今日まだなら昨日から数える
+  while(set.has(cur)){n++;cur=shift(cur,-1);}
+  return n;
+}
+function questCount(d){let n=0;Object.keys(d.quests||{}).forEach(k=>n+=d.quests[k].length);return n;}
+function questXP(d){let n=0;Object.keys(d.quests||{}).forEach(k=>d.quests[k].forEach(id=>{
+  const q=QPOOL.find(p=>p.id===id);if(q)n+=q.x;}));return n;}
+function xp(d){
+  const l=d.logs.reduce((a,x)=>a+(x.xp||(x.sets.length*10+50)),0);
+  return l + d.promotions.length*200 + d.rest.length*5 + questXP(d);
+}
+/** 連続日数によるXP倍率：5日ごとに+0.1、最大×1.5 */
+function combo(){return Math.min(1.5,1+Math.floor(streak(db)/5)/10);}
+/** そのステップを「修了」したか（最終ステップは進級先がないので基準クリアで判定） */
+function mastered(id){
+  const st=db.steps[id]||1;if(st<10)return false;
+  return bestTier(id,10)>=3;
+}
+function masterCount(){return EX.filter(e=>mastered(e.id)).length;}
+/* 減刑の内訳：トレーニング1日=3日／進級1回=150日／種目修了=300日
+   全60ステップを登り切るとおよそ9,900日。残りは通い続けた日数で埋める設計 */
+const CUT={day:3,promo:150,master:300};
+function cutDays(d){
+  const days=trainDays(d).length*CUT.day;
+  const pro=d.promotions.length*CUT.promo;
+  const ms=EX.filter(e=>{const st=d.steps[e.id]||1;if(st<10)return false;
+    return d.logs.some(l=>l.ex===e.id&&l.step===10&&tierOf(l)===3);}).length*CUT.master;
+  return Math.min(TERM,days+pro+ms);
+}
+function remain(d){return TERM-cutDays(d);}
+function cutPct(d){return cutDays(d)/TERM*100;}
+/** 日数を「◯年◯ヶ月◯日」に */
+function fmtTerm(n){
+  const y=Math.floor(n/365),m=Math.floor((n%365)/30),dd=(n%365)%30;
+  return (y?y+'<span>年</span>':'')+(m?m+'<span>ヶ月</span>':'')+dd+'<span>日</span>';
+}
+/** 看守のHP＝初級・中級・上級の3段階。クリアした段階だけ削れる */
+function guardHP(id,extraTier,atStep){
+  const st=atStep||step(id);
+  const b=Math.max(bestTier(id,st),extraTier||0);
+  return {max:3,d:Math.min(3,b)};
+}
+function hpPips(g){let h='';for(let i=0;i<g.max;i++)h+='<i class="'+(i<g.d?(g.d>=g.max?'k':'d'):'')+'"></i>';return h;}
+/** 差し入れカードを1枚引く（並70% / 稀25% / 極5%） */
+function drawCard(){
+  const r=Math.random(),rar=r<0.05?3:r<0.30?2:1;
+  const pool=CARDS.filter(c=>c.r===rar);
+  const c=pool[Math.floor(Math.random()*pool.length)];
+  db.cards[c.id]=(db.cards[c.id]||0)+1;
+  return c;
+}
+/** 今日の任務の達成判定。新たに達成したものを返す */
+function checkQuests(){
+  const t=today(),L=db.logs.filter(l=>l.date===t);
+  const got=db.quests[t]||[],nw=[];
+  todayQuests().forEach(q=>{if(!got.includes(q.id)&&q.c(L)){got.push(q.id);nw.push(q);}});
+  db.quests[t]=got;return nw;
+}
+function rankOf(pct){let i=0;for(let k=0;k<RANKS.length;k++)if(pct>=RANKS[k][0])i=k;return i;}
+function logsOn(date,id){return db.logs.filter(l=>l.date===date&&l.ex===id);}
+/** 進級基準を満たしているか（旧データの回数記録用） */
+function meetsPro(sets,pro){return sets.filter(v=>v>=pro[1]).length>=pro[0];}
+/* --- 記録の段階（1=初級 / 2=中級 / 3=上級＝進級基準） --- */
+const TIER=['','初級','中級','上級'];
+/** 記録が何段階か。旧形式（回数記録）は自動で段階に変換する */
+function tierOf(l){
+  if(l.tier)return l.tier;
+  if(!l.sets)return 1;
+  const sd=stepData(l.ex,l.step);
+  if(meetsPro(l.sets,sd.pro))return 3;
+  if(meetsPro(l.sets,sd.int))return 2;
+  return 1;
+}
+/** その段階の基準 [セット数, 回数] */
+function stdOf(id,st,t){const sd=stepData(id,st);return t===3?sd.pro:t===2?sd.int:sd.beg;}
+function setsOf(l){return l.sets?l.sets.length:stdOf(l.ex,l.step,tierOf(l))[0];}
+function repsOf(l){const g=stdOf(l.ex,l.step,tierOf(l));
+  return l.sets?l.sets.reduce((a,b)=>a+b,0):g[0]*g[1];}
+/** ある種目のあるステップで到達済みの最高段階 */
+function bestTier(id,st){
+  let b=0;db.logs.forEach(l=>{if(l.ex===id&&l.step===st)b=Math.max(b,tierOf(l));});
+  return b;
+}
+/** 到達度：ステップと段階を1本の物差しに（最大30） */
+function reachOf(l){return (l.step-1)*3+tierOf(l);}
+function advCount(d){return d.logs.filter(l=>tierOf(l)===3).length;}
+function midCount(d){return d.logs.filter(l=>tierOf(l)>=2).length;}
+function canPromote(id){
+  const st=step(id);
+  return st<10 && bestTier(id,st)>=3;
+}
+
+/* ============================================================
+   4. 正の字タリー（連続日数を描く）
+   ============================================================ */
+const STROKES=['M3,3 L17,3','M9,3 L9,17','M9,9 L16,9','M3,9 L3,17','M3,17 L17,17'];
+function tallySVG(k,fresh){
+  let p='';for(let i=0;i<k;i++)p+='<path d="'+STROKES[i]+'"/>';
+  return '<svg viewBox="0 0 20 20" class="'+(fresh?'fresh':'')+'" aria-hidden="true">'+p+'</svg>';
+}
+function tallyHTML(n){
+  if(n===0)return '<span class="muted">まだ刻まれていない</span>';
+  const full=Math.floor(n/5),rest=n%5;
+  const show=Math.min(full,11);let h='';
+  for(let i=0;i<show;i++)h+=tallySVG(5,false);
+  if(full>show)h+='<span class="tally-more">+'+(full-show)*5+'</span>';
+  if(rest)h+=tallySVG(rest,true);
+  return h;
+}
+
+
+/* ============================================================
+   4.5 スプライト（SVGで描いた絵）
+   ============================================================ */
+const GC={pu:{c:'#C2603C',arm:10},sq:{c:'#7B8C58',leg:1},pl:{c:'#C9A227',claw:1},
+          lr:{c:'#A8956A',chain:1},br:{c:'#5F8080',tilt:-14},hs:{c:'#9A6BA0',flip:1}};
+
+/** 看守の絵。id=種目ID、size=描画サイズ */
+function guardSVG(id){
+  const g=GC[id],c=g.c,dark='#1C1C18',mid='#37362F',lit='#4A483F';
+  const aw=g.arm||6, ax=17-(aw-6);
+  let body=''
+   +'<ellipse cx="32" cy="60" rx="17" ry="3" fill="#000" opacity=".4"/>'
+   /* 脚 */
+   +'<rect x="'+(g.leg?22:24)+'" y="52" width="'+(g.leg?8:6)+'" height="8" fill="'+dark+'"/>'
+   +'<rect x="'+(g.leg?34:34)+'" y="52" width="'+(g.leg?8:6)+'" height="8" fill="'+dark+'"/>'
+   /* 胴 */
+   +'<path d="M19 33 L45 33 L48 56 L16 56 Z" fill="'+mid+'" stroke="'+dark+'" stroke-width="1.6"/>'
+   +'<rect x="16" y="43" width="32" height="3" fill="'+dark+'" opacity=".55"/>'
+   +(g.chain?'<path d="M20 47 q12 7 24 0" stroke="'+c+'" stroke-width="2" fill="none" stroke-dasharray="2 3"/>':'')
+   /* 記章 */
+   +'<path d="M32 36 l4 5 -4 5 -4 -5 Z" fill="'+c+'"/>'
+   /* 肩 */
+   +'<rect x="14" y="30" width="36" height="6" rx="3" fill="'+lit+'" stroke="'+dark+'" stroke-width="1.4"/>'
+   +'<rect x="16" y="31.5" width="6" height="3" fill="'+c+'"/><rect x="42" y="31.5" width="6" height="3" fill="'+c+'"/>'
+   /* 腕 */
+   +'<rect x="'+ax+'" y="36" width="'+aw+'" height="17" rx="'+(aw/2)+'" fill="'+mid+'" stroke="'+dark+'" stroke-width="1.3"/>'
+   +'<rect x="'+(47-(aw-6))+'" y="36" width="'+aw+'" height="17" rx="'+(aw/2)+'" fill="'+mid+'" stroke="'+dark+'" stroke-width="1.3"/>'
+   +(g.claw?'<path d="M50 52 l4 6 M53 51 l4 5 M56 49 l4 4" stroke="'+c+'" stroke-width="2" stroke-linecap="round" fill="none"/>':'')
+   /* 首・頭 */
+   +'<rect x="29" y="27" width="6" height="5" fill="'+dark+'"/>'
+   +'<g transform="rotate('+(g.tilt||0)+' 32 22)">'
+     +'<rect x="22" y="10" width="20" height="19" rx="5" fill="'+lit+'" stroke="'+dark+'" stroke-width="1.6"/>'
+     +'<path d="M32 7 l4 5 h-8 Z" fill="'+c+'"/>'
+     +'<rect x="18" y="16.5" width="28" height="3.6" rx="1.8" fill="'+dark+'"/>'
+     +'<rect x="24" y="21" width="16" height="5.4" rx="2.4" fill="'+dark+'"/>'
+     +'<circle cx="28" cy="23.7" r="1.7" fill="'+c+'"/><circle cx="36" cy="23.7" r="1.7" fill="'+c+'"/>'
+   +'</g>';
+  const inner=g.flip?'<g transform="rotate(180 32 32)">'+body+'</g>':body;
+  return '<svg viewBox="0 0 64 64" aria-hidden="true">'+inner+'</svg>';
+}
+
+/** 自分（囚人）の絵。rankに応じて体格と装いが変わる */
+function avatarSVG(r){
+  const w=16+r*2.8, x=32-w/2;                  /* 胴幅：16 → 33 と明確に太くなる */
+  const aw=5+r*0.9, skin='#CBAA86', hair='#22211B', ln='#17170F';
+  const uni=r>=5?'#4F6350':(r>=3?'#7A7565':'#6A6659');
+  const dk =r>=5?'#3A4A3B':(r>=3?'#5C5849':'#4E4B40');
+  const strp=r>=5?'#3D503E':'#4A473C';
+  const tilt=7-r*1.2;                           /* うつむき → 正面を向く */
+  const S='stroke="'+ln+'" stroke-width="1"';
+  let st='';for(let i=0;i<Math.max(0,4-Math.floor(r/2));i++)
+    st+='<rect x="'+(x+1)+'" y="'+(31+i*6.5)+'" width="'+(w-2)+'" height="2.6" fill="'+strp+'"/>';
+  return '<g class="av">'
+   +'<ellipse cx="32" cy="73" rx="'+(w*0.62)+'" ry="2.8" fill="#000" opacity=".5"/>'
+   /* 脚 */
+   +'<rect x="'+(32-w*0.40)+'" y="57" width="'+(w*0.30)+'" height="16" rx="1.5" fill="'+dk+'" '+S+'/>'
+   +'<rect x="'+(32+w*0.10)+'" y="57" width="'+(w*0.30)+'" height="16" rx="1.5" fill="'+dk+'" '+S+'/>'
+   /* 腕（胴より暗くして輪郭を出す） */
+   +'<rect x="'+(x-aw+1)+'" y="27" width="'+aw+'" height="'+(25+r*1.2)+'" rx="'+(aw/2)+'" fill="'+dk+'" '+S+'/>'
+   +'<rect x="'+(x+w-1)+'" y="27" width="'+aw+'" height="'+(25+r*1.2)+'" rx="'+(aw/2)+'" fill="'+dk+'" '+S+'/>'
+   /* 胴 */
+   +'<rect x="'+x+'" y="25" width="'+w+'" height="34" rx="3.5" fill="'+uni+'" '+S+'/>'+st
+   +(r>=4?'<rect x="'+(x-1)+'" y="51" width="'+(w+2)+'" height="4.5" rx="1" fill="#C9A227" '+S+'/>':'')
+   /* 頭 */
+   +'<g transform="rotate('+tilt+' 32 18)">'
+     +'<rect x="29.4" y="21" width="5.2" height="5" fill="'+skin+'"/>'
+     +'<rect x="24.6" y="7" width="14.8" height="15.5" rx="4.5" fill="'+skin+'" '+S+'/>'
+     +'<path d="M24.2 12.5 q7.8 -8 15.6 0 v-2.6 q-7.8 -6.4 -15.6 0 Z" fill="'+hair+'"/>'
+     +'<rect x="27.6" y="14.6" width="2.8" height="2.2" rx="1" fill="#1B1B15"/>'
+     +'<rect x="33.6" y="14.6" width="2.8" height="2.2" rx="1" fill="#1B1B15"/>'
+     +(r>=2?'<path d="M28.6 19.4 h6.8" stroke="#8A6F52" stroke-width="1.1" stroke-linecap="round"/>':'')
+     +(r>=6?'<path d="M32 2.4 l3 4.4 h-6 Z" fill="#C9A227"/>':'')
+   +'</g></g>';
+}
+
+/** 独房のシーン（ホーム最上部の絵） */
+function cellScene(){
+  const r=rankOf(cutPct(db)),n=streak(db),free=remain(db)===0;
+  const moon=free?'#F2EEDF':'#9B978A';
+  /* 壁に刻まれた正の字 */
+  let wall='';
+  const full=Math.min(5,Math.floor(n/5)),rest=n%5;
+  const mark=(k,tx)=>'<g transform="translate('+tx+',34) scale(.85)" opacity=".26">'
+    +STROKES.slice(0,k).map(d=>'<path d="'+d+'" stroke="#EDE8DA" stroke-width="2.6" fill="none" stroke-linecap="round"/>').join('')+'</g>';
+  for(let i=0;i<full;i++)wall+=mark(5,20+i*22);
+  if(rest&&full<5)wall+=mark(rest,20+full*22);
+  /* 鉄格子（金属のハイライト付き） */
+  let bars='';
+  for(let i=0;i<7;i++){const bx=14+i*42;
+    bars+='<rect x="'+bx+'" y="0" width="8" height="150" fill="#101009"/>'
+        +'<rect x="'+(bx+1)+'" y="0" width="1.6" height="150" fill="#4A483F" opacity=".55"/>';}
+  bars+='<rect x="0" y="20" width="300" height="6" fill="#101009"/>'
+      + '<rect x="0" y="21" width="300" height="1.4" fill="#4A483F" opacity=".5"/>';
+  /* 月光が床に落ちる */
+  const light='<path d="M232 52 L268 52 L300 128 L206 128 Z" fill="'+moon+'" opacity=".07"/>';
+  return '<div class="cell"><svg viewBox="0 0 300 150">'
+   +'<defs><linearGradient id="wg" x1="0" y1="0" x2="0" y2="1">'
+   +'<stop offset="0" stop-color="#31312A"/><stop offset="1" stop-color="#14140E"/></linearGradient>'
+   +'<radialGradient id="mg"><stop offset="0" stop-color="'+moon+'" stop-opacity=".5"/>'
+   +'<stop offset="1" stop-color="'+moon+'" stop-opacity="0"/></radialGradient>'
+   +'<linearGradient id="fl" x1="0" y1="0" x2="0" y2="1">'
+   +'<stop offset="0" stop-color="#1B1B14"/><stop offset="1" stop-color="#0C0C08"/></linearGradient></defs>'
+   +'<rect width="300" height="150" fill="url(#wg)"/>'
+   +'<circle cx="250" cy="40" r="38" fill="url(#mg)"/><circle cx="250" cy="40" r="15" fill="'+moon+'" opacity=".9"/>'
+   +wall+light
+   +'<rect y="126" width="300" height="24" fill="url(#fl)"/>'
+   +'<rect y="126" width="300" height="1" fill="#4A483F" opacity=".4"/>'
+   +'<g transform="translate(124,16) scale(1.52)">'+avatarSVG(avTier(r))+'</g>'
+   +bars
+   +'</svg><div class="cell-cap">'+(free?'RELEASED':'CELL BLOCK \u2014 '+RANKS[r][1])+'</div></div>';
+}
+
+/** 火花エフェクト */
+function sparks(){
+  let h='<div class="sparkbox">';
+  for(let i=0;i<10;i++){const a=Math.PI*2*i/10;
+    h+='<i style="--dx:'+(Math.cos(a)*58).toFixed(0)+'px;--dy:'+(Math.sin(a)*58).toFixed(0)+'px;animation-delay:'+(i*18)+'ms"></i>';}
+  return h+'</div>';
+}
+
+/* ============================================================
+   5. 監房（ホーム）
+   ============================================================ */
+function renderHome(){
+  let h='';
+  const t=today(),isRest=db.rest.includes(t);
+  const rem=remain(db),done=cutDays(db),pct=(done/TERM*100);
+
+  /* --- 刑期バー（このアプリの進行の軸） --- */
+  h=cellScene();
+  const ri=rankOf(cutPct(db)),nrank=RANKS[ri+1];
+  let marks='';RANKS.slice(1,-1).forEach(rk=>{marks+='<b style="left:'+rk[0]+'%"></b>';});
+  h+='<div class="term'+(rem===0?' free':'')+'"><div class="term-top">'
+   +'<div><span class="eyebrow">Remaining sentence</span>'
+   +'<div class="term-n">'+(rem===0?'釈放':fmtTerm(rem))+'</div></div>'
+   +'<div style="text-align:right"><div class="term-cut">−'+done.toLocaleString()+' 日 減刑</div>'
+   +'<div class="muted" style="font-size:11px;margin-top:3px">'+RANKS[ri][1]+'</div></div></div>'
+   +'<div class="term-bar"><i style="width:'+pct.toFixed(2)+'%"></i>'+marks+'</div>'
+   +'<div class="term-foot"><span>収監</span><span>'+pct.toFixed(2)+'% 済</span><span>出所</span></div>'
+   +'<div class="cutbreak">'
+   +'<div><b>'+CUT.day+'</b><span>実施1日</span></div>'
+   +'<div><b>'+CUT.promo+'</b><span>進級1回</span></div>'
+   +'<div><b>'+CUT.master+'</b><span>種目修了</span></div></div>'
+   +(nrank?'<div class="muted" style="font-size:11px;margin-top:9px;text-align:center">次の階級「'+nrank[1]
+     +'」まで あと '+Math.ceil(nrank[0]/100*TERM-done).toLocaleString()+' 日ぶんの減刑</div>':'')
+   +'</div>';
+
+  /* --- 正の字タリー --- */
+  h+='<div class="tallybox"><div class="tally-head">'
+   +'<div><span class="eyebrow">Consecutive days</span><div class="tally-n">'+streak(db)+'<span>日連続</span></div></div>'
+   +'<div style="text-align:right"><span class="combo">XP ×'+combo().toFixed(1)+'</span>'
+   +'<div class="muted" style="font-size:11px;margin-top:7px">累計 '+trainDays(db).length+' 日</div></div>'
+   +'</div><div class="tally-wrap">'+tallyHTML(streak(db))+'</div></div>';
+
+  /* --- 今日の任務 --- */
+  const L=db.logs.filter(l=>l.date===t),got=db.quests[t]||[];
+  h+='<span class="eyebrow">Orders of the day</span><div class="slab">';
+  todayQuests().forEach(q=>{const ok=got.includes(q.id)||q.c(L);
+    h+='<div class="quest '+(ok?'ok':'')+'"><div class="q-box">\u2713</div>'
+     +'<div class="q-t">'+q.t+'</div><div class="q-xp">+'+q.x+' XP</div></div>';});
+  h+='</div>';
+
+  /* --- 種目カード（看守HP付き） --- */
+  h+='<span class="eyebrow">Cell block \u2014 '+t+'</span>';
+  if(isRest)h+='<div class="slab" style="border-left:3px solid var(--rust)"><b>休息日</b>'
+   +'<div class="muted">回復も訓練のうち。連続日数は途切れない。</div></div>';
+  EX.forEach(e=>{
+    const st=step(e.id),sd=stepData(e.id,st),dn=logsOn(t,e.id).length>0,rdy=canPromote(e.id),g=guardHP(e.id);
+    let bars='';for(let i=1;i<=10;i++)bars+='<i class="'+(i<st?'f':i===st?'c':'')+'"></i>';
+    h+='<button class="ex '+(dn?'done':rdy?'ready':'')+'" onclick="openLog(\''+e.id+'\')">'
+      +'<div class="icn">'+guardSVG(e.id)+'</div><div class="bd">'
+      +'<div class="ex-top"><div class="ex-name">'+e.n+'</div>'
+      +(dn?'<span class="badge-mini badge-done">DONE</span>':rdy?'<span class="badge-mini">討伐済</span>':'<span class="ex-step">STEP '+String(st).padStart(2,'0')+'</span>')
+      +'</div><div class="ex-sub">'+sd.name+'</div>'
+      +'<div class="ex-goal">初 '+sd.beg[0]+'\u00d7'+sd.beg[1]+'　中 '+sd.int[0]+'\u00d7'+sd.int[1]
+      +'　<b>上 '+sd.pro[0]+'\u00d7'+sd.pro[1]+'</b></div>'
+      +'<div class="bar">'+bars+'</div>'
+      +'<div class="guard"><span class="guard-n">'+(g.d?'到達 '+TIER[g.d]:'未着手')+(g.d>=3?'・討伐':'')+'</span>'
+      +'<div class="hp">'+hpPips(g)+'</div></div></div></button>';
+  });
+
+  h+='<button class="btn rest '+(isRest?'on':'')+'" style="margin-top:12px" onclick="toggleRest()">'
+   +(isRest?'休息日を取り消す':'今日は休息日にする')+'</button>';
+  if(memoryOnly)h+='<div class="slab muted" style="margin-top:12px">この環境では保存できません。GitHub Pages に置くか、ホーム画面に追加して使ってください。</div>';
+  $('#v-home').innerHTML=h;
+}
+function toggleRest(){
+  const t=today();
+  if(db.rest.includes(t))db.rest=db.rest.filter(d=>d!==t);
+  else{db.rest.push(t);toast('休息日を記録した');}
+  save();renderAll();
+}
+
+/* ============================================================
+   6. 記録
+   ============================================================ */
+let cur=null;            // 記録中の種目ID
+let logStep=1;           // 記録するステップ
+let tier=0;              // 選んだ段階（1=初級 2=中級 3=上級）
+let rpe=0, memo='';
+let fxHit=false;         // 看守にダメージを与えた瞬間かどうか
+
+function openLog(id){
+  cur=id;logStep=step(id);tier=0;rpe=0;memo='';fxHit=false;
+  go(1);renderLog();
+}
+function renderLog(){
+  /* --- 種目選択 --- */
+  if(!cur){
+    let h='<span class="eyebrow">Select exercise</span>';
+    EX.forEach(e=>{const st=step(e.id),sd=stepData(e.id,st),b=bestTier(e.id,st);
+      h+='<button class="ex" onclick="openLog(\''+e.id+'\')"><div class="icn">'+guardSVG(e.id)+'</div><div class="bd">'
+       +'<div class="ex-top"><div class="ex-name">'+e.n+'</div>'
+       +'<span class="ex-step">STEP '+String(st).padStart(2,'0')+'</span></div>'
+       +'<div class="ex-sub">'+sd.name+'</div>'
+       +'<div class="guard"><span class="guard-n">'+(b?'到達 '+TIER[b]:'未着手')+'</span>'
+       +'<div class="hp">'+hpPips(guardHP(e.id))+'</div></div></div></button>';});
+    $('#v-log').innerHTML=h;fxHit=false;return;
+  }
+
+  const e=ex(cur),sd=stepData(cur,logStep),unit=sd.unit==='s'?'秒':'回';
+  const done=bestTier(cur,logStep);
+  const gd=guardHP(cur,tier,logStep),dead=gd.d>=3;
+
+  let h='<button class="btn ghost sm" style="margin-bottom:12px" onclick="cur=null;renderLog()">← 種目を選び直す</button>';
+
+  /* --- 看守 --- */
+  let pips='';for(let i=0;i<3;i++)pips+='<i class="'+(i<gd.d?(dead?'k':'d'):'')+'"></i>';
+  h+='<div class="slab" style="text-align:center">'
+   +'<span class="eyebrow">'+e.n+'</span>'
+   +'<div class="gsprite'+(fxHit?' gh':'')+(dead&&!fxHit?' dead':'')+'">'+guardSVG(cur)
+   +'<div class="fx"></div><div class="dmg">−1</div></div>'
+   +'<div class="gname">看守 <b>'+GUARD[cur]+'</b></div>'
+   +'<div class="ghp">'+pips+'</div>'
+   +'<div class="muted" style="margin-top:9px;font-size:12px">'
+   +(dead?'上級クリア済み — 記録すれば進級できる':'段階をクリアするごとに1ダメージ')+'</div></div>';
+
+  /* --- ステップの選択 --- */
+  h+='<div class="slab"><span class="eyebrow">Step</span>'
+   +'<div class="steppick">'
+   +'<button onclick="setStep(-1)" '+(logStep<=1?'disabled':'')+'>−</button>'
+   +'<div><b>STEP '+String(logStep).padStart(2,'0')+'</b><span>'+sd.name+'</span></div>'
+   +'<button onclick="setStep(1)" '+(logStep>=10?'disabled':'')+'>＋</button></div>'
+   +(logStep!==step(cur)?'<div class="muted" style="font-size:11px;margin-top:8px;text-align:center">'
+     +'現在のステップは '+step(cur)+' です</div>':'')
+   +'</div>';
+
+  /* --- 段階の選択（これが記録の中身） --- */
+  h+='<span class="eyebrow">今日クリアした段階</span><div class="slab">';
+  [1,2,3].forEach(t=>{
+    const g=stdOf(cur,logStep,t),got=done>=t;
+    h+='<button class="tier'+(tier===t?' on':'')+(got?' got':'')+'" onclick="pickTier('+t+')">'
+     +'<div class="tk">'+(tier===t?'●':got?'✓':'')+'</div>'
+     +'<div class="tn">'+TIER[t]+(t===3?'<em>進級基準</em>':'')+'</div>'
+     +'<div class="tv">'+g[0]+' × '+g[1]+'<span>'+unit+'</span></div></button>';});
+  h+='<div class="muted" style="font-size:11.5px;margin-top:10px">'
+   +'今日いちばん高くクリアできた段階を選んでください。届かなかった日は下の段階で記録します。</div></div>';
+
+  /* --- きつさ・メモ --- */
+  h+='<div class="slab"><span class="eyebrow">きつさ</span><div class="rpe">';
+  ['楽','やや楽','普通','きつい','限界'].forEach((l,i)=>{
+    h+='<button class="'+(rpe===i+1?'on':'')+'" onclick="rpe='+(i+1)+';renderLog()">'+(i+1)
+     +'<div style="font-size:9px;letter-spacing:0">'+l+'</div></button>';});
+  h+='</div></div>';
+  h+='<div class="slab"><span class="eyebrow">メモ</span>'
+   +'<textarea id="memo" placeholder="実際の回数、フォームの気づき、体調など" oninput="memo=this.value">'+esc(memo)+'</textarea></div>';
+
+  h+='<button class="btn '+(tier?'primary':'')+'" onclick="saveLog()">'
+   +(tier?TIER[tier]+'で記録する':'段階を選んでください')+'</button>';
+  $('#v-log').innerHTML=h;fxHit=false;
+}
+function setStep(d){
+  logStep=Math.min(10,Math.max(1,logStep+d));tier=0;renderLog();
+}
+function pickTier(t){
+  const before=Math.max(bestTier(cur,logStep),tier);
+  tier=(tier===t)?0:t;
+  if(tier>before)fxHit=true;              /* 新しい段階を初めてクリアした瞬間に一撃 */
+  renderLog();
+}
+
+let pending=null;
+function saveLog(){
+  if(!tier){toast('段階を選んでください');return;}
+  const before=remain(db);
+  const m=combo(),gain=Math.round((20+tier*30)*m);
+  db.logs.push({date:today(),ex:cur,step:logStep,tier:tier,rpe:rpe,memo:memo,xp:gain});
+  db.rest=db.rest.filter(d=>d!==today());
+  const newQ=checkQuests();
+  const card=drawCard();
+  save();
+  const promo=(tier===3&&logStep===step(cur)&&logStep<10);
+  const id=cur;cur=null;renderAll();go(0);
+  pending=promo?id:null;
+  showResult(gain,m,newQ,card,before,id,logStep,tier);
+}
+/* 記録直後の結果画面 */
+function showResult(gain,m,qs,card,beforeRem,exId,st,t){
+  const qx=qs.reduce((a,q)=>a+q.x,0);
+  let h='<div class="stamp">TODAY’S HAUL</div>'
+   +'<div class="rres">'+ex(exId).n+'<b>STEP '+st+' ・ '+TIER[t]+'</b></div>'
+   +'<div style="position:relative">'+(card.r>1?sparks():'')
+   +'<div class="gain">+<span id="cnt">0</span> <span>XP</span></div></div>'
+   +'<div class="muted" style="margin:6px 0 14px">記録 '+gain+' XP'
+   +(m>1?'（連続ボーナス ×'+m.toFixed(1)+'）':'')+(qx?' ／ 任務 '+qx+' XP':'')+'</div>';
+  if(qs.length)h+='<div style="text-align:left;margin-bottom:14px">'+qs.map(q=>
+    '<div class="quest ok"><div class="q-box">✓</div><div class="q-t">'+q.t+'</div></div>').join('')+'</div>';
+  h+='<div class="cardbig"><div class="rar">差し入れ ・ '+RAR[card.r]+'</div>'
+   +'<div class="nm">'+card.n+'</div><div class="qt">'+card.q+'</div>'
+   +(db.cards[card.id]===1?'<div class="rar" style="margin-top:8px">NEW</div>'
+     :'<div class="muted" style="font-size:10px;margin-top:8px">×'+db.cards[card.id]+'</div>')+'</div>';
+  const now=remain(db);
+  if(now<beforeRem)h+='<div class="muted" style="margin-bottom:14px">刑期 <b style="color:var(--brass)">−'
+   +(beforeRem-now)+'日</b>　残り '+now+'日</div>';
+  if(now===0)h+='<div class="stamp" style="font-size:15px;letter-spacing:.2em;margin-bottom:12px">刑期満了 — 出所</div>';
+  h+='<button class="btn primary" onclick="afterResult()">続ける</button>';
+  $('#modalBox').innerHTML=h;$('#modal').classList.add('on');
+  countUp('cnt',gain+qx);
+}
+/** 数字がパチパチ上がる演出 */
+function countUp(id,to){
+  const el=document.getElementById(id);if(!el)return;
+  if(window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches){el.textContent=to;return;}
+  const t0=performance.now(),dur=800;
+  (function tick(t){
+    const p=Math.min(1,(t-t0)/dur),e=1-Math.pow(1-p,3);
+    el.textContent=Math.round(to*e);
+    if(p<1)requestAnimationFrame(tick);
+  })(t0);
+}
+function afterResult(){
+  closeModal();
+  if(pending){const p=pending;pending=null;setTimeout(()=>askPromote(p),180);}
+}
+function askPromote(id){
+  const st=step(id),nx=stepData(id,st+1);
+  $('#modalBox').innerHTML='<div style="position:relative">'+sparks()
+   +'<div class="gsprite dead" style="pointer-events:none">'+guardSVG(id)+'</div></div>'
+   +'<div class="stamp big">PROMOTION</div>'
+   +'<div style="font-size:19px;font-weight:700;margin:8px 0 4px">看守「'+GUARD[id]+'」を討伐</div>'
+   +'<div class="muted" style="margin-bottom:16px">'+ex(id).n+' STEP '+st+' → STEP '+(st+1)+'<br>'+nx.name+'</div>'
+   +'<button class="btn primary" onclick="doPromote(\''+id+'\')">次のステップへ進む</button>'
+   +'<button class="btn ghost" style="margin-top:8px" onclick="closeModal()">まだこのステップを続ける</button>';
+  $('#modal').classList.add('on');
+}
+function doPromote(id){
+  db.steps[id]=Math.min(10,step(id)+1);
+  db.promotions.push({date:today(),ex:id,to:db.steps[id]});
+  save();closeModal();renderAll();toast('STEP '+db.steps[id]+' へ進級');
+}
+function closeModal(){$('#modal').classList.remove('on');}
+
+/* ============================================================
+   7. 進捗（グラフ・カレンダー）
+   ============================================================ */
+let pick='pu', calM=new Date().getMonth(), calY=new Date().getFullYear();
+function renderProg(){
+  let h='<span class="eyebrow">Progression</span><div class="slab">';
+  EX.forEach(e=>{const st=step(e.id),sd=stepData(e.id,st);let b='';
+    for(let i=1;i<=10;i++)b+='<i class="'+(i<st?'f':i===st?'c':'')+'"></i>';
+    h+='<div style="margin-bottom:13px"><div style="display:flex;justify-content:space-between;font-size:13px">'
+     +'<span>'+e.n+'</span><span class="num" style="color:var(--brass);font-size:12px">'+st+' / 10</span></div>'
+     +'<div class="bar">'+b+'</div>'
+     +'<div class="muted" style="font-size:11px;margin-top:4px">'+sd.name+'</div></div>';});
+  h+='</div>';
+
+  h+='<span class="eyebrow">Progression over time</span><div class="chips">'
+   +'<button class="'+(pick==='all'?'on':'')+'" onclick="pick=\'all\';renderProg()">全体</button>';
+  EX.forEach(e=>h+='<button class="'+(pick===e.id?'on':'')+'" onclick="pick=\''+e.id+'\';renderProg()">'+e.n+'</button>');
+  h+='</div><div class="slab">'+chart(pick)+'</div>';
+
+  h+='<span class="eyebrow">Calendar</span><div class="slab">'
+   +'<div style="display:flex;justify-content:space-between;align-items:center">'
+   +'<button class="btn sm ghost" onclick="mv(-1)">←</button>'
+   +'<div class="num" style="font-size:15px">'+calY+'. '+String(calM+1).padStart(2,'0')+'</div>'
+   +'<button class="btn sm ghost" onclick="mv(1)">→</button></div>'
+   +calendar()
+   +'<div style="display:flex;gap:14px;margin-top:12px;font-size:11px;color:var(--chalk-dim)">'
+   +'<span><i style="display:inline-block;width:9px;height:9px;background:var(--brass);border-radius:1px"></i> 実施</span>'
+   +'<span><i style="display:inline-block;width:9px;height:9px;background:var(--rust);border-radius:1px"></i> 休息</span></div></div>';
+  $('#v-prog').innerHTML=h;
+}
+function mv(d){calM+=d;if(calM<0){calM=11;calY--;}if(calM>11){calM=0;calY++;}renderProg();}
+
+/** きりのいい上限値を選ぶ */
+function niceTop(v){
+  if(v<=0)return 10;
+  const p=Math.pow(10,Math.floor(Math.log10(v))),f=v/p;
+  const n=f<=1?1:f<=1.5?1.5:f<=2?2:f<=3?3:f<=4?4:f<=5?5:f<=7.5?7.5:10;
+  return n*p;
+}
+/** 到達度（ステップ×段階）の推移。単調に上がっていくのが見える */
+function reachSeries(id){
+  const dates=[...new Set(db.logs.map(l=>l.date))].sort();
+  const out=[];
+  if(id!=='all'){
+    let best=0;
+    dates.forEach(dt=>{const ls=db.logs.filter(l=>l.date===dt&&l.ex===id);
+      if(!ls.length)return;
+      ls.forEach(l=>{best=Math.max(best,reachOf(l));});
+      out.push({d:dt,v:best});});
+  }else{
+    const best={};EX.forEach(e=>best[e.id]=0);
+    dates.forEach(dt=>{db.logs.filter(l=>l.date===dt).forEach(l=>{best[l.ex]=Math.max(best[l.ex],reachOf(l));});
+      out.push({d:dt,v:EX.reduce((a,e)=>a+best[e.id],0)});});
+  }
+  return out;
+}
+function chart(id){
+  const ser=reachSeries(id).slice(-14);
+  if(!ser.length)return '<div class="muted" style="padding:34px 0;text-align:center">この種目の記録はまだない</div>';
+  const vals=ser.map(o=>o.v),curv=vals[vals.length-1];
+  const cap=id==='all'?180:30;                       /* 満点＝全ステップ上級 */
+  const unitStep=id==='all'?18:3;                    /* 目盛り1つ＝1ステップ分 */
+  const top=Math.min(cap,Math.max(unitStep*2,Math.ceil((curv+unitStep*0.6)/unitStep)*unitStep));
+  const W=340,H=168,L=32,R=10,T=12,B=28;
+  const iw=(W-L-R)/ser.length, bw=Math.min(20,iw*0.58);
+  const yy=v=>H-B-(v/top)*(H-B-T);
+
+  let grid='';
+  const lines=Math.min(6,Math.round(top/unitStep));
+  for(let k=0;k<=lines;k++){
+    const v=top*k/lines,y=yy(v);
+    const lab=id==='all'?Math.round(v/18*10)/10+'':'S'+Math.min(10,Math.floor(v/3)+(v%3===0&&v>0?0:1));
+    grid+='<line x1="'+L+'" y1="'+y.toFixed(1)+'" x2="'+(W-R)+'" y2="'+y.toFixed(1)
+      +'" stroke="#4E4C43" stroke-width="'+(k===0?1:0.6)+'" opacity="'+(k===0?1:0.4)+'"/>'
+      +'<text x="'+(L-5)+'" y="'+(y+3.4).toFixed(1)+'" fill="#948F82" font-size="9" font-family="Oswald" text-anchor="end">'
+      +(k===0?'0':lab)+'</text>';
+  }
+  let bars='',every=Math.ceil(ser.length/7);
+  ser.forEach((o,i)=>{
+    const cx=L+iw*i+iw/2,y=yy(o.v),hg=Math.max(2,H-B-y);
+    const isNew=i>0&&o.v>ser[i-1].v;
+    bars+='<rect x="'+(cx-bw/2).toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+hg.toFixed(1)
+      +'" rx="1.5" fill="'+(isNew?'#EDE8DA':'#C9A227')+'"/>';
+    if(i%every===0||i===ser.length-1){const pt=o.d.split('-');
+      bars+='<text x="'+cx.toFixed(1)+'" y="'+(H-B+13)+'" fill="#948F82" font-size="9" font-family="Oswald" text-anchor="middle">'
+        +(+pt[1])+'/'+(+pt[2])+'</text>';}
+  });
+  /* 段階別の回数 */
+  const src=(id==='all')?db.logs:db.logs.filter(l=>l.ex===id);
+  const cnt=[0,0,0];src.forEach(l=>cnt[tierOf(l)-1]++);
+  const mx=Math.max(1,cnt[0],cnt[1],cnt[2]);
+  let tb='<div class="tcount">';
+  [1,2,3].forEach(t=>{tb+='<div><span>'+TIER[t]+'</span>'
+    +'<i style="width:'+(cnt[t-1]/mx*100).toFixed(0)+'%"></i><b>'+cnt[t-1]+'</b></div>';});
+  tb+='</div>';
+
+  const nowLab=id==='all'
+    ? '合計 '+curv+' / 180'
+    : 'STEP '+Math.min(10,Math.floor((curv-1)/3)+1)+' ・ '+TIER[((curv-1)%3)+1];
+  return '<svg class="chart" viewBox="0 0 '+W+' '+H+'" role="img">'+grid+bars+'</svg>'
+   +'<div class="muted" style="text-align:center;font-size:11px;margin-top:6px">'
+   +'到達度の推移（白い棒＝更新した日）／ 現在 '+nowLab+'</div>'
+   +'<div class="eyebrow" style="margin-top:16px">Records by tier</div>'+tb;
+}
+function calendar(){
+  const first=new Date(calY,calM,1).getDay(),len=new Date(calY,calM+1,0).getDate();
+  const tr=new Set(db.logs.map(l=>l.date)),rs=new Set(db.rest),t=today();
+  let h='<div class="calhead">'+['日','月','火','水','木','金','土'].map(d=>'<span>'+d+'</span>').join('')+'</div><div class="cal">';
+  for(let i=0;i<first;i++)h+='<div class="pad"></div>';
+  for(let d=1;d<=len;d++){
+    const k=calY+'-'+String(calM+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    h+='<div class="'+(tr.has(k)?'t':rs.has(k)?'r':'')+(k===t?' today':'')+'">'+d+'</div>';
+  }
+  return h+'</div>';
+}
+
+/* ============================================================
+   8. 階級・実績・データ管理
+   ============================================================ */
+function renderRank(){
+  const x=xp(db),pc=cutPct(db),i=rankOf(pc),nx=RANKS[i+1];
+  const p=nx?Math.min(100,(pc-RANKS[i][0])/(nx[0]-RANKS[i][0])*100):100;
+  let h='<div class="slab rank"><span class="eyebrow">Current rank</span>'
+   +'<svg viewBox="14 0 36 78" style="width:78px;height:126px;display:block;margin:6px auto -4px">'+avatarSVG(avTier(i))+'</svg>'
+   +'<div class="rank-name">'+RANKS[i][1]+'</div><div class="rank-xp">'+x+' XP</div>'
+   +'<div class="prog"><i style="width:'+p+'%"></i></div>'
+   +'<div class="muted">'+(nx?'次の階級「'+nx[1]+'」まで あと '+Math.ceil(nx[0]/100*TERM-cutDays(db)).toLocaleString()+' 日ぶんの減刑'
+      :'刑期満了 \u2014 出所')+'</div></div>';
+
+  const tot60=EX.reduce((a,e)=>a+step(e.id),0);
+  h+='<div class="stats"><div><b>'+trainDays(db).length+'</b><span>実施日</span></div>'
+   +'<div><b>'+totalSets(db)+'</b><span>総セット</span></div>'
+   +'<div><b>'+db.promotions.length+'</b><span>進級回数</span></div></div>'
+   +'<div class="stats"><div><b>'+tot60+'<span style="font-size:12px;color:var(--chalk-dim)">/60</span></b><span>ステップ到達</span></div>'
+   +'<div><b>'+masterCount()+'<span style="font-size:12px;color:var(--chalk-dim)">/6</span></b><span>種目修了</span></div>'
+   +'<div><b>'+cutPct(db).toFixed(1)+'<span style="font-size:12px;color:var(--chalk-dim)">%</span></b><span>減刑率</span></div></div>'
+   +'<div class="stats"><div><b>'+db.logs.length+'</b><span>記録数</span></div>'
+   +'<div><b>'+midCount(db)+'</b><span>中級以上</span></div>'
+   +'<div><b>'+advCount(db)+'</b><span>上級達成</span></div></div>';
+
+  const nGot=ACH.filter(a=>achDone(a,db)).length;
+  h+='<span class="eyebrow">Achievements \u2014 '+nGot+' / '+ACH.length+'</span>';
+  AGROUPS.forEach(gr=>{
+    const list=ACH.filter(a=>a.g===gr),g2=list.filter(a=>achDone(a,db)).length;
+    h+='<div class="slab"><div class="ghead">'+gr+'<span>'+g2+' / '+list.length+'</span></div>';
+    list.forEach(a=>{
+      const cv=a.v(db),got=cv>=a.n,p=Math.min(100,cv/a.n*100);
+      h+='<div class="ach '+(got?'got':'')+'"><div class="k">'+(got?'\u2713':'\u2014')+'</div>'
+       +'<div style="flex:1;min-width:0"><div class="t">'+a.t+'</div>'
+       +'<div class="abar"><i style="width:'+p.toFixed(1)+'%"></i></div>'
+       +'<div class="d">'+Math.min(cv,a.n).toLocaleString()+' / '+a.n.toLocaleString()+' '+a.u+'</div></div></div>';});
+    h+='</div>';});
+
+  const owned=Object.keys(db.cards||{}).length;
+  h+='<span class="eyebrow">Card collection \u2014 '+owned+' / '+CARDS.length+'</span><div class="slab"><div class="cards">';
+  CARDS.forEach(c=>{const n=db.cards[c.id]||0;
+    h+='<div class="card r'+c.r+(n?'':' lock')+'" onclick="'+(n?'showCard(\''+c.id+'\')':'')+'">'
+     +(n>1?'<u>\u00d7'+n+'</u>':'')+'<b>'+(n?c.n:'？？？')+'</b><em>'+RAR[c.r]+'</em></div>';});
+  h+='</div></div>';
+
+  h+='<span class="eyebrow">Manual step</span><div class="slab">';
+  EX.forEach(e=>{h+='<div style="display:flex;align-items:center;gap:8px;padding:6px 0">'
+   +'<div style="flex:1;font-size:13px">'+e.n+'</div>'
+   +'<div class="stepper"><button onclick="mstep(\''+e.id+'\',-1)">−</button>'
+   +'<input type="text" value="'+step(e.id)+'" readonly style="width:52px">'
+   +'<button onclick="mstep(\''+e.id+'\',1)">＋</button></div></div>';});
+  h+='</div>';
+
+  h+='<span class="eyebrow">Data</span><div class="slab">'
+   +'<button class="btn sm" style="width:100%;margin-bottom:8px" onclick="expo()">バックアップを書き出す</button>'
+   +'<button class="btn sm" style="width:100%;margin-bottom:8px" onclick="impo()">バックアップを読み込む</button>'
+   +'<button class="btn sm ghost" style="width:100%;color:#C08A6E" onclick="wipe()">全データを消去する</button></div>';
+  $('#v-rank').innerHTML=h;
+}
+function showCard(id){
+  const c=CARDS.find(x=>x.id===id);
+  $('#modalBox').innerHTML='<div class="cardbig" style="margin:0 0 14px"><div class="rar">差し入れ \u30fb '+RAR[c.r]+'</div>'
+   +'<div class="nm">'+c.n+'</div><div class="qt">'+c.q+'</div>'
+   +'<div class="muted" style="font-size:10px;margin-top:8px">\u6240\u6301 \u00d7'+db.cards[c.id]+'</div></div>'
+   +'<button class="btn ghost" onclick="closeModal()">閉じる</button>';
+  $('#modal').classList.add('on');
+}
+function mstep(id,d){db.steps[id]=Math.min(10,Math.max(1,step(id)+d));save();renderAll();}
+function expo(){
+  const s=JSON.stringify(db);
+  const blob=new Blob([s],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='prisoner-'+today()+'.json';a.click();
+  navigator.clipboard&&navigator.clipboard.writeText(s);
+  toast('書き出した（クリップボードにもコピー）');
+}
+function impo(){
+  const s=prompt('バックアップのJSONを貼り付けてください');
+  if(!s)return;
+  try{const d=JSON.parse(s);const b=blank();
+    db={v:1,steps:Object.assign(b.steps,d.steps||{}),logs:d.logs||[],rest:d.rest||[],
+        promotions:d.promotions||[],cards:d.cards||{},quests:d.quests||{}};
+    save();renderAll();toast('読み込んだ');}
+  catch(e){toast('読み込めない形式です');}
+}
+function wipe(){
+  $('#modalBox').innerHTML='<div class="stamp">CAUTION</div><div style="font-size:17px;font-weight:700;margin-bottom:6px">全データを消去する</div>'
+   +'<div class="muted" style="margin-bottom:16px">記録・ステップ・階級がすべて消えます。元に戻せません。</div>'
+   +'<button class="btn" style="border-color:var(--rust);color:#D9A88E" onclick="doWipe()">消去する</button>'
+   +'<button class="btn ghost" style="margin-top:8px" onclick="closeModal()">やめる</button>';
+  $('#modal').classList.add('on');
+}
+function doWipe(){db=blank();save();closeModal();renderAll();go(0);toast('消去した');}
+
+/* ============================================================
+   9. タブ・起動
+   ============================================================ */
+const TABS=[
+ {t:'監房',v:'v-home',i:'<rect x="3" y="3" width="18" height="18" rx="1"/><path d="M8 3v18M13 3v18M18 3v18"/>'},
+ {t:'記録',v:'v-log',i:'<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/>'},
+ {t:'進捗',v:'v-prog',i:'<path d="M3 20h18"/><path d="M6 16v-5M11 16V7M16 16v-8M21 16v-3"/>'},
+ {t:'階級',v:'v-rank',i:'<circle cx="12" cy="9" r="5"/><path d="M8.5 13.5L7 22l5-3 5 3-1.5-8.5"/>'}
+];
+let tab=0;
+function go(i){
+  tab=i;
+  document.querySelectorAll('.view').forEach((v,k)=>v.classList.toggle('on',k===i));
+  document.querySelectorAll('#nav button').forEach((b,k)=>b.classList.toggle('on',k===i));
+  window.scrollTo(0,0);
+}
+function renderNav(){
+  $('#nav').innerHTML=TABS.map((t,i)=>
+   '<button class="'+(i===0?'on':'')+'" onclick="go('+i+')"><svg viewBox="0 0 24 24">'+t.i+'</svg><span>'+t.t+'</span></button>').join('');
+}
+function renderAll(){renderHome();renderLog();renderProg();renderRank();}
+
+$('#datetag').textContent=today().replace(/-/g,'.');
+$('#modal').addEventListener('click',e=>{if(e.target.id==='modal')closeModal();});
+renderNav();renderAll();
+</script>
+</body>
+</html>
