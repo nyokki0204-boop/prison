@@ -191,7 +191,15 @@ header.top{
 .tier .tv{font-family:var(--disp);font-size:20px;font-weight:500;letter-spacing:.04em}
 .tier .tv span{font-size:11px;color:var(--chalk-dim);margin-left:2px}
 .tier.on .tv span{color:#1E1E1B}
+.achv{display:flex;align-items:center;gap:8px;margin-top:12px;padding:10px 12px;border-radius:var(--r);
+ background:var(--concrete-800);border:1px solid var(--concrete-500);font-size:12.5px;color:var(--chalk-dim)}
+.achv b{font-size:15px;color:var(--chalk-dim)}
+.achv.ok{border-color:var(--brass)}
+.achv.ok b{color:var(--brass)}
+.achv span{margin-left:auto;font-family:var(--disp);font-size:12px;letter-spacing:.06em}
 .rres{font-size:13px;color:var(--chalk-dim);margin-bottom:10px}
+.rres i{display:block;font-style:normal;font-family:var(--disp);font-size:12px;letter-spacing:.08em;
+ color:var(--chalk-dim);margin-top:4px}
 .rres b{display:block;color:var(--chalk);font-size:16px;letter-spacing:.04em;margin-top:2px}
 .tcount div{display:flex;align-items:center;gap:9px;padding:6px 0}
 .tcount span{width:34px;flex:none;font-size:12px;color:var(--chalk-dim)}
@@ -219,6 +227,9 @@ textarea{
 /* ============================================================
    進捗（グラフ・カレンダー）
    ============================================================ */
+.segs{display:flex;gap:0;margin-bottom:10px;border:1px solid var(--concrete-500);border-radius:var(--r);overflow:hidden}
+.segs button{flex:1;padding:9px 0;font-size:13px;color:var(--chalk-dim);background:var(--concrete-800)}
+.segs button.on{background:var(--chalk);color:var(--concrete-900);font-weight:700}
 .chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:12px;-webkit-overflow-scrolling:touch}
 .chips button{
   flex:none;padding:7px 12px;border:1px solid var(--concrete-500);border-radius:20px;
@@ -654,12 +665,34 @@ function blank(){
   const st={};EX.forEach(e=>st[e.id]=1);
   return {v:1,steps:st,logs:[],rest:[],promotions:[],cards:{},quests:{}};
 }
+/** 壊れた・古い保存データを安全な形に整える（不正な記録は捨てる） */
+function sanitize(d){
+  const b=blank();
+  if(!d||typeof d!=='object')return b;
+  const num=(v,lo,hi,def)=>{const n=parseInt(v);return (isFinite(n)&&n>=lo&&n<=hi)?n:def;};
+  EX.forEach(e=>{b.steps[e.id]=num((d.steps||{})[e.id],1,10,1);});
+  b.logs=(Array.isArray(d.logs)?d.logs:[]).filter(l=>l&&typeof l==='object'&&ex(l.ex)).map(l=>{
+    const st=num(l.step,1,10,1);
+    const o={date:String(l.date||today()),ex:l.ex,step:st,
+             rpe:num(l.rpe,0,5,0),memo:String(l.memo||''),xp:num(l.xp,0,100000,0)};
+    const sets=Array.isArray(l.sets)?l.sets.map(v=>num(v,0,100000,0)).filter(v=>v>0):null;
+    if(sets&&sets.length)o.sets=sets;
+    if(l.tier!==undefined&&l.tier!==null)o.tier=num(l.tier,0,3,0);
+    if(l.unit)o.unit=String(l.unit);
+    if(o.tier===undefined&&!o.sets)o.tier=1;      /* 情報がない記録は初級扱い */
+    return o;});
+  b.rest=(Array.isArray(d.rest)?d.rest:[]).filter(x=>typeof x==='string');
+  b.promotions=(Array.isArray(d.promotions)?d.promotions:[]).filter(x=>x&&typeof x==='object');
+  b.cards=(d.cards&&typeof d.cards==='object'&&!Array.isArray(d.cards))?d.cards:{};
+  b.quests={};
+  if(d.quests&&typeof d.quests==='object'&&!Array.isArray(d.quests))
+    Object.keys(d.quests).forEach(k=>{if(Array.isArray(d.quests[k]))b.quests[k]=d.quests[k];});
+  return b;
+}
 function load(){
   try{
     const raw=localStorage.getItem(KEY);
-    if(raw){const d=JSON.parse(raw);const b=blank();
-      return {v:1,steps:Object.assign(b.steps,d.steps||{}),logs:d.logs||[],rest:d.rest||[],
-              promotions:d.promotions||[],cards:d.cards||{},quests:d.quests||{}};}
+    if(raw)return sanitize(JSON.parse(raw));
   }catch(e){memoryOnly=true;}
   return blank();
 }
@@ -676,8 +709,12 @@ function ymd(d){const p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+
 function today(){return ymd(new Date());}
 function shift(str,n){const[a,b,c]=str.split('-').map(Number);const d=new Date(a,b-1,c);d.setDate(d.getDate()+n);return ymd(d);}
 function ex(id){return EX.find(e=>e.id===id);}
-function step(id){return db.steps[id]||1;}
-function stepData(id,n){const s=ex(id).s[n-1];return {name:s[0],beg:s[1],int:s[2],pro:s[3],unit:s[4]||'r'};}
+function step(id){const n=parseInt(db.steps[id]);return (n>=1&&n<=10)?n:1;}
+function stepData(id,n){
+  const e=ex(id);
+  const s=(e&&e.s[Math.min(10,Math.max(1,parseInt(n)||1))-1])||['—',[1,1],[1,1],[1,1]];
+  return {name:s[0],beg:s[1],int:s[2],pro:s[3],unit:s[4]||'r'};
+}
 function u(unit,v){return unit==='s'?v+'秒':v+'回';}
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(t._x);t._x=setTimeout(()=>t.classList.remove('on'),2100);}
@@ -691,11 +728,13 @@ function streak(d){
   while(set.has(cur)){n++;cur=shift(cur,-1);}
   return n;
 }
-function questCount(d){let n=0;Object.keys(d.quests||{}).forEach(k=>n+=d.quests[k].length);return n;}
-function questXP(d){let n=0;Object.keys(d.quests||{}).forEach(k=>d.quests[k].forEach(id=>{
-  const q=QPOOL.find(p=>p.id===id);if(q)n+=q.x;}));return n;}
+function questCount(d){let n=0;const q=d.quests||{};
+  Object.keys(q).forEach(k=>{if(Array.isArray(q[k]))n+=q[k].length;});return n;}
+function questXP(d){let n=0;const qq=d.quests||{};
+  Object.keys(qq).forEach(k=>{if(!Array.isArray(qq[k]))return;
+    qq[k].forEach(id=>{const q=QPOOL.find(p=>p.id===id);if(q)n+=q.x;});});return n;}
 function xp(d){
-  const l=d.logs.reduce((a,x)=>a+(x.xp||(x.sets.length*10+50)),0);
+  const l=d.logs.reduce((a,x)=>a+(x.xp||(setsOf(x)*10+50)),0);
   return l + d.promotions.length*200 + d.rest.length*5 + questXP(d);
 }
 /** 連続日数によるXP倍率：5日ごとに+0.1、最大×1.5 */
@@ -753,7 +792,7 @@ function meetsPro(sets,pro){return sets.filter(v=>v>=pro[1]).length>=pro[0];}
 const TIER=['','初級','中級','上級'];
 /** 記録が何段階か。旧形式（回数記録）は自動で段階に変換する */
 function tierOf(l){
-  if(l.tier)return l.tier;
+  if(l.tier!==undefined)return l.tier;
   if(!l.sets)return 1;
   const sd=stepData(l.ex,l.step);
   if(meetsPro(l.sets,sd.pro))return 3;
@@ -762,9 +801,9 @@ function tierOf(l){
 }
 /** その段階の基準 [セット数, 回数] */
 function stdOf(id,st,t){const sd=stepData(id,st);return t===3?sd.pro:t===2?sd.int:sd.beg;}
-function setsOf(l){return l.sets?l.sets.length:stdOf(l.ex,l.step,tierOf(l))[0];}
+function setsOf(l){return (l.sets&&l.sets.length)?l.sets.length:stdOf(l.ex,l.step,tierOf(l))[0];}
 function repsOf(l){const g=stdOf(l.ex,l.step,tierOf(l));
-  return l.sets?l.sets.reduce((a,b)=>a+b,0):g[0]*g[1];}
+  return (l.sets&&l.sets.length)?l.sets.reduce((a,b)=>a+b,0):g[0]*g[1];}
 /** ある種目のあるステップで到達済みの最高段階 */
 function bestTier(id,st){
   let b=0;db.logs.forEach(l=>{if(l.ex===id&&l.step===st)b=Math.max(b,tierOf(l));});
@@ -996,13 +1035,30 @@ function toggleRest(){
    ============================================================ */
 let cur=null;            // 記録中の種目ID
 let logStep=1;           // 記録するステップ
-let tier=0;              // 選んだ段階（1=初級 2=中級 3=上級）
+let target=1;            // 狙う段階（基準の回数をあらかじめ入れるために使う）
+let sets=[];             // 実際にできた回数（セットごと）
 let rpe=0, memo='';
 let fxHit=false;         // 看守にダメージを与えた瞬間かどうか
 
 function openLog(id){
-  cur=id;logStep=step(id);tier=0;rpe=0;memo='';fxHit=false;
+  cur=id;logStep=step(id);rpe=0;memo='';fxHit=false;
+  aimTier(Math.min(3,bestTier(id,logStep)+1)||1,true);   /* 次に狙う段階を初期表示 */
   go(1);renderLog();
+}
+/** 段階を選ぶ＝その基準の回数をあらかじめ入れる（あとから実数に直せる） */
+function aimTier(t,silent){
+  const g=stdOf(cur,logStep,t);
+  target=t;sets=[];
+  for(let i=0;i<g[0];i++)sets.push(g[1]);
+  if(!silent)renderLog();
+}
+/** 入力した実回数から「実際に達成した段階」を判定する */
+function achieved(){
+  const sd=stepData(cur,logStep);
+  if(meetsPro(sets,sd.pro))return 3;
+  if(meetsPro(sets,sd.int))return 2;
+  if(meetsPro(sets,sd.beg))return 1;
+  return 0;
 }
 function renderLog(){
   /* --- 種目選択 --- */
@@ -1019,15 +1075,13 @@ function renderLog(){
   }
 
   const e=ex(cur),sd=stepData(cur,logStep),unit=sd.unit==='s'?'秒':'回';
-  const done=bestTier(cur,logStep);
-  const gd=guardHP(cur,tier,logStep),dead=gd.d>=3;
-
+  const done=bestTier(cur,logStep),ach=achieved();
+  const gd=guardHP(cur,ach,logStep),dead=gd.d>=3;
   let h='<button class="btn ghost sm" style="margin-bottom:12px" onclick="cur=null;renderLog()">← 種目を選び直す</button>';
 
   /* --- 看守 --- */
   let pips='';for(let i=0;i<3;i++)pips+='<i class="'+(i<gd.d?(dead?'k':'d'):'')+'"></i>';
-  h+='<div class="slab" style="text-align:center">'
-   +'<span class="eyebrow">'+e.n+'</span>'
+  h+='<div class="slab" style="text-align:center"><span class="eyebrow">'+e.n+'</span>'
    +'<div class="gsprite'+(fxHit?' gh':'')+(dead&&!fxHit?' dead':'')+'">'+guardSVG(cur)
    +'<div class="fx"></div><div class="dmg">−1</div></div>'
    +'<div class="gname">看守 <b>'+GUARD[cur]+'</b></div>'
@@ -1035,26 +1089,38 @@ function renderLog(){
    +'<div class="muted" style="margin-top:9px;font-size:12px">'
    +(dead?'上級クリア済み — 記録すれば進級できる':'段階をクリアするごとに1ダメージ')+'</div></div>';
 
-  /* --- ステップの選択 --- */
-  h+='<div class="slab"><span class="eyebrow">Step</span>'
-   +'<div class="steppick">'
+  /* --- ステップ --- */
+  h+='<div class="slab"><span class="eyebrow">Step</span><div class="steppick">'
    +'<button onclick="setStep(-1)" '+(logStep<=1?'disabled':'')+'>−</button>'
    +'<div><b>STEP '+String(logStep).padStart(2,'0')+'</b><span>'+sd.name+'</span></div>'
    +'<button onclick="setStep(1)" '+(logStep>=10?'disabled':'')+'>＋</button></div>'
-   +(logStep!==step(cur)?'<div class="muted" style="font-size:11px;margin-top:8px;text-align:center">'
-     +'現在のステップは '+step(cur)+' です</div>':'')
+   +(logStep!==step(cur)?'<div class="muted" style="font-size:11px;margin-top:8px;text-align:center">現在のステップは '+step(cur)+' です</div>':'')
    +'</div>';
 
-  /* --- 段階の選択（これが記録の中身） --- */
-  h+='<span class="eyebrow">今日クリアした段階</span><div class="slab">';
+  /* --- 狙う段階（タップで基準の回数が入る） --- */
+  h+='<span class="eyebrow">狙う段階</span><div class="slab">';
   [1,2,3].forEach(t=>{
     const g=stdOf(cur,logStep,t),got=done>=t;
-    h+='<button class="tier'+(tier===t?' on':'')+(got?' got':'')+'" onclick="pickTier('+t+')">'
-     +'<div class="tk">'+(tier===t?'●':got?'✓':'')+'</div>'
+    h+='<button class="tier'+(target===t?' on':'')+(got?' got':'')+'" onclick="aimTier('+t+')">'
+     +'<div class="tk">'+(target===t?'●':got?'✓':'')+'</div>'
      +'<div class="tn">'+TIER[t]+(t===3?'<em>進級基準</em>':'')+'</div>'
      +'<div class="tv">'+g[0]+' × '+g[1]+'<span>'+unit+'</span></div></button>';});
-  h+='<div class="muted" style="font-size:11.5px;margin-top:10px">'
-   +'今日いちばん高くクリアできた段階を選んでください。届かなかった日は下の段階で記録します。</div></div>';
+  h+='</div>';
+
+  /* --- 実際にできた回数 --- */
+  const g0=stdOf(cur,logStep,target);
+  h+='<span class="eyebrow">実際にできた'+unit+'数</span><div class="slab">';
+  sets.forEach((v,i)=>{
+    h+='<div class="setrow"><div class="setno">SET '+(i+1)+'</div>'
+      +'<div class="hit">'+(v>=g0[1]?'基準◎':'')+'</div>'
+      +'<div class="stepper"><button onclick="bump('+i+',-1)" aria-label="減らす">−</button>'
+      +'<input type="number" inputmode="numeric" value="'+v+'" onchange="setVal('+i+',this.value)">'
+      +'<button onclick="bump('+i+',1)" aria-label="増やす">＋</button></div></div>';});
+  h+='<div class="row2" style="margin-top:12px">'
+    +'<button class="btn sm" style="width:100%" onclick="addSet()">セットを追加</button>'
+    +'<button class="btn sm ghost" style="width:100%" onclick="delSet()">最後を削除</button></div>'
+    +'<div class="achv'+(ach?' ok':'')+'">達成段階 <b>'+(ach?TIER[ach]:'基準未満')+'</b>'
+    +'<span>合計 '+sets.reduce((a,b)=>a+b,0)+unit+'</span></div></div>';
 
   /* --- きつさ・メモ --- */
   h+='<div class="slab"><span class="eyebrow">きつさ</span><div class="rpe">';
@@ -1063,42 +1129,50 @@ function renderLog(){
      +'<div style="font-size:9px;letter-spacing:0">'+l+'</div></button>';});
   h+='</div></div>';
   h+='<div class="slab"><span class="eyebrow">メモ</span>'
-   +'<textarea id="memo" placeholder="実際の回数、フォームの気づき、体調など" oninput="memo=this.value">'+esc(memo)+'</textarea></div>';
-
-  h+='<button class="btn '+(tier?'primary':'')+'" onclick="saveLog()">'
-   +(tier?TIER[tier]+'で記録する':'段階を選んでください')+'</button>';
+   +'<textarea id="memo" placeholder="フォームの気づき、体調など" oninput="memo=this.value">'+esc(memo)+'</textarea></div>';
+  h+='<button class="btn primary" onclick="saveLog()">この内容で記録する</button>';
   $('#v-log').innerHTML=h;fxHit=false;
 }
-function setStep(d){
-  logStep=Math.min(10,Math.max(1,logStep+d));tier=0;renderLog();
-}
-function pickTier(t){
-  const before=Math.max(bestTier(cur,logStep),tier);
-  tier=(tier===t)?0:t;
-  if(tier>before)fxHit=true;              /* 新しい段階を初めてクリアした瞬間に一撃 */
+function setStep(d){logStep=Math.min(10,Math.max(1,logStep+d));aimTier(Math.min(3,bestTier(cur,logStep)+1)||1);}
+function bump(i,d){
+  const before=Math.max(achieved(),bestTier(cur,logStep));
+  sets[i]=Math.max(0,(sets[i]||0)+d);
+  if(achieved()>before)fxHit=true;
   renderLog();
 }
+function setVal(i,v){
+  const before=Math.max(achieved(),bestTier(cur,logStep));
+  sets[i]=Math.max(0,parseInt(v)||0);
+  if(achieved()>before)fxHit=true;
+  renderLog();
+}
+function addSet(){if(sets.length<12){sets.push(sets[sets.length-1]||0);renderLog();}}
+function delSet(){if(sets.length>1){sets.pop();renderLog();}}
 
 let pending=null;
 function saveLog(){
-  if(!tier){toast('段階を選んでください');return;}
-  const before=remain(db);
-  const m=combo(),gain=Math.round((20+tier*30)*m);
-  db.logs.push({date:today(),ex:cur,step:logStep,tier:tier,rpe:rpe,memo:memo,xp:gain});
+  const use=sets.filter(v=>v>0);
+  if(!use.length){toast('回数を入力してください');return;}
+  const t=achieved();
+  const beforeRem=remain(db);
+  const m=combo(),gain=Math.round((20+Math.max(1,t)*30)*m);
+  db.logs.push({date:today(),ex:cur,step:logStep,tier:t,sets:use,unit:stepData(cur,logStep).unit,
+                rpe:rpe,memo:memo,xp:gain});
   db.rest=db.rest.filter(d=>d!==today());
   const newQ=checkQuests();
   const card=drawCard();
   save();
-  const promo=(tier===3&&logStep===step(cur)&&logStep<10);
+  const promo=(t===3&&logStep===step(cur)&&logStep<10);
   const id=cur;cur=null;renderAll();go(0);
   pending=promo?id:null;
-  showResult(gain,m,newQ,card,before,id,logStep,tier);
+  showResult(gain,m,newQ,card,beforeRem,id,logStep,t,use);
 }
 /* 記録直後の結果画面 */
-function showResult(gain,m,qs,card,beforeRem,exId,st,t){
+function showResult(gain,m,qs,card,beforeRem,exId,st,t,use){
   const qx=qs.reduce((a,q)=>a+q.x,0);
   let h='<div class="stamp">TODAY’S HAUL</div>'
-   +'<div class="rres">'+ex(exId).n+'<b>STEP '+st+' ・ '+TIER[t]+'</b></div>'
+   +'<div class="rres">'+ex(exId).n+'<b>STEP '+st+' ・ '+(t?TIER[t]:'基準未満')+'</b>'
+   +'<i>'+use.join(' / ')+'　合計 '+use.reduce((a,b)=>a+b,0)+'</i></div>'
    +'<div style="position:relative">'+(card.r>1?sparks():'')
    +'<div class="gain">+<span id="cnt">0</span> <span>XP</span></div></div>'
    +'<div class="muted" style="margin:6px 0 14px">記録 '+gain+' XP'
@@ -1153,7 +1227,7 @@ function closeModal(){$('#modal').classList.remove('on');}
 /* ============================================================
    7. 進捗（グラフ・カレンダー）
    ============================================================ */
-let pick='pu', calM=new Date().getMonth(), calY=new Date().getFullYear();
+let pick='pu', cmode='reach', calM=new Date().getMonth(), calY=new Date().getFullYear();
 function renderProg(){
   let h='<span class="eyebrow">Progression</span><div class="slab">';
   EX.forEach(e=>{const st=step(e.id),sd=stepData(e.id,st);let b='';
@@ -1164,10 +1238,14 @@ function renderProg(){
      +'<div class="muted" style="font-size:11px;margin-top:4px">'+sd.name+'</div></div>';});
   h+='</div>';
 
-  h+='<span class="eyebrow">Progression over time</span><div class="chips">'
+  h+='<span class="eyebrow">'+(cmode==='reach'?'Progression over time':'Daily volume')+'</span>'
+   +'<div class="segs">'
+   +'<button class="'+(cmode==='reach'?'on':'')+'" onclick="cmode=\'reach\';renderProg()">到達度</button>'
+   +'<button class="'+(cmode==='vol'?'on':'')+'" onclick="cmode=\'vol\';renderProg()">回数</button></div>'
+   +'<div class="chips">'
    +'<button class="'+(pick==='all'?'on':'')+'" onclick="pick=\'all\';renderProg()">全体</button>';
   EX.forEach(e=>h+='<button class="'+(pick===e.id?'on':'')+'" onclick="pick=\''+e.id+'\';renderProg()">'+e.n+'</button>');
-  h+='</div><div class="slab">'+chart(pick)+'</div>';
+  h+='</div><div class="slab">'+(cmode==='reach'?chart(pick):chartVol(pick))+'</div>';
 
   h+='<span class="eyebrow">Calendar</span><div class="slab">'
    +'<div style="display:flex;justify-content:space-between;align-items:center">'
@@ -1205,6 +1283,42 @@ function reachSeries(id){
       out.push({d:dt,v:EX.reduce((a,e)=>a+best[e.id],0)});});
   }
   return out;
+}
+/** 日ごとの合計回数を棒グラフで描く */
+function chartVol(id){
+  const rows={};
+  const src=(id==='all')?db.logs:db.logs.filter(l=>l.ex===id);
+  src.forEach(l=>{rows[l.date]=(rows[l.date]||0)+repsOf(l);});
+  const keys=Object.keys(rows).sort().slice(-14);
+  if(!keys.length)return '<div class="muted" style="padding:34px 0;text-align:center">この種目の記録はまだない</div>';
+  const vals=keys.map(k=>rows[k]);
+  let target=0,unit='回';
+  if(id!=='all'){const sd=stepData(id,step(id));target=sd.pro[0]*sd.pro[1];unit=sd.unit==='s'?'秒':'回';}
+  const best=Math.max.apply(null,vals);
+  const top=niceTop(Math.max(best,target)*1.08);
+  const W=340,H=168,L=32,R=10,T=12,B=28;
+  const iw=(W-L-R)/keys.length,bw=Math.min(20,iw*0.58);
+  const yy=v=>H-B-(v/top)*(H-B-T);
+  let grid='';
+  [0,0.5,1].forEach(f=>{const v=top*f,y=yy(v);
+    grid+='<line x1="'+L+'" y1="'+y.toFixed(1)+'" x2="'+(W-R)+'" y2="'+y.toFixed(1)+'" stroke="#4E4C43" stroke-width="'+(f===0?1:0.6)+'" opacity="'+(f===0?1:0.45)+'"/>'
+       +'<text x="'+(L-5)+'" y="'+(y+3.4).toFixed(1)+'" fill="#948F82" font-size="9" font-family="Oswald" text-anchor="end">'+Math.round(v)+'</text>';});
+  let tg='';
+  if(target&&target<=top){const y=yy(target);
+    tg='<line x1="'+L+'" y1="'+y.toFixed(1)+'" x2="'+(W-R)+'" y2="'+y.toFixed(1)+'" stroke="#B4553A" stroke-width="1.2" stroke-dasharray="4 3"/>'
+      +'<text x="'+(W-R)+'" y="'+(y-4).toFixed(1)+'" fill="#C2603C" font-size="9" font-family="Oswald" text-anchor="end">進級基準 '+target+'</text>';}
+  let bars='',every=Math.ceil(keys.length/7);
+  vals.forEach((v,i)=>{const cx=L+iw*i+iw/2,y=yy(v),hg=Math.max(2,H-B-y);
+    bars+='<rect x="'+(cx-bw/2).toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+hg.toFixed(1)+'" rx="1.5" fill="'+(v===best?'#EDE8DA':'#C9A227')+'"/>';
+    if(i%every===0||i===keys.length-1){const pt=keys[i].split('-');
+      bars+='<text x="'+cx.toFixed(1)+'" y="'+(H-B+13)+'" fill="#948F82" font-size="9" font-family="Oswald" text-anchor="middle">'+(+pt[1])+'/'+(+pt[2])+'</text>';}});
+  const avg=Math.round(vals.reduce((a,b)=>a+b,0)/vals.length);
+  return '<svg class="chart" viewBox="0 0 '+W+' '+H+'" role="img">'+grid+tg+bars+'</svg>'
+   +'<div class="cstat"><div><b>'+vals[vals.length-1]+'</b><span>直近</span></div>'
+   +'<div><b>'+avg+'</b><span>平均</span></div>'
+   +'<div><b>'+best+'</b><span>最高</span></div>'
+   +(target?'<div><b>'+target+'</b><span>進級基準</span></div>':'')+'</div>'
+   +'<div class="muted" style="text-align:center;font-size:11px;margin-top:8px">直近'+keys.length+'回・1日あたりの合計'+unit+'数</div>';
 }
 function chart(id){
   const ser=reachSeries(id).slice(-14);
@@ -1248,7 +1362,8 @@ function chart(id){
 
   const nowLab=id==='all'
     ? '合計 '+curv+' / 180'
-    : 'STEP '+Math.min(10,Math.floor((curv-1)/3)+1)+' ・ '+TIER[((curv-1)%3)+1];
+    : (curv<=0 ? '基準未満'
+       : 'STEP '+Math.min(10,Math.floor((curv-1)/3)+1)+' ・ '+TIER[((curv-1)%3)+1]);
   return '<svg class="chart" viewBox="0 0 '+W+' '+H+'" role="img">'+grid+bars+'</svg>'
    +'<div class="muted" style="text-align:center;font-size:11px;margin-top:6px">'
    +'到達度の推移（白い棒＝更新した日）／ 現在 '+nowLab+'</div>'
@@ -1344,10 +1459,9 @@ function expo(){
 function impo(){
   const s=prompt('バックアップのJSONを貼り付けてください');
   if(!s)return;
-  try{const d=JSON.parse(s);const b=blank();
-    db={v:1,steps:Object.assign(b.steps,d.steps||{}),logs:d.logs||[],rest:d.rest||[],
-        promotions:d.promotions||[],cards:d.cards||{},quests:d.quests||{}};
-    save();renderAll();toast('読み込んだ');}
+  try{const d=JSON.parse(s);
+    if(!d||typeof d!=='object')throw 0;
+    db=sanitize(d);save();renderAll();toast('読み込んだ（'+db.logs.length+'件）');}
   catch(e){toast('読み込めない形式です');}
 }
 function wipe(){
